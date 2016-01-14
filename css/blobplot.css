@@ -1,0 +1,37 @@
+.axis text {
+  font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.hexagon {
+  fill: red;
+  stroke: none;
+  stroke-width: .5px;
+}
+.overlay {
+  fill: white;
+  stroke: lightgrey;
+  opacity: 0.01;
+  stroke-width: .5px;
+}
+.overlay.selected {
+  fill: blue;
+  stroke: lightgrey;
+  opacity: 0.3;
+  stroke-width: .5px;
+}
+
+.node {
+  border: solid 1px white;
+  font: 10px sans-serif;
+  line-height: 12px;
+  overflow: hidden;
+  position: absolute;
+  text-indent: 2px;
+}
