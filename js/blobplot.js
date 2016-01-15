@@ -28,14 +28,22 @@ var x = d3.scale.linear()
 var y = d3.scale.linear()
     .domain([-4, 6])
     .range([height, 0]);
+    
+var xax = d3.scale.linear()
+	.domain([0, 1])
+	.range([0, width]);
+	
+var yax = d3.scale.log()
+	.domain([0.0001, 1000000])
+	.range([height, 0]);
 
 var xAxis = d3.svg.axis()
-    .scale(x)
+    .scale(xax)
     .orient("bottom")
     .tickSize(6, -height);
 
 var yAxis = d3.svg.axis()
-    .scale(y)
+    .scale(yax)
     .orient("left")
     .tickSize(6, -width);
 
