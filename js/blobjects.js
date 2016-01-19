@@ -78,6 +78,9 @@ Blobplot.prototype.Rank = function(rank){
 	if (!rank) return this.rank
 	if (!this.ranks[rank]) return this.rank
 	this.rank = rank
+	this.applyFilters();
+	
+	
 	return rank;
 }
 
@@ -167,7 +170,9 @@ Blobplot.prototype.applyRules = function(){
 }
 
 Blobplot.prototype.ranksDropdown = function(target){
-	var select = d3.select('#'+target).append('select');
+	var div = d3.select('#'+target);
+	div.select('select').remove();
+	var select = div.append('select');
 	var blobplot = this;
 	for( var rank in this.ranks ) {
     	if( this.ranks.hasOwnProperty( rank ) ) {
@@ -178,34 +183,40 @@ Blobplot.prototype.ranksDropdown = function(target){
     			.text(name);
 		}
 	}
-	select.on('change',function(){blobplot.Rank(this.options[this.selectedIndex].value); blobplot.applyFilters();})
+	select.on('change',function(){blobplot.Rank(this.options[this.selectedIndex].value);  })
 }
 
 Blobplot.prototype.showTaxa = function(target){
 	var blobplot = this;
-	var taxa = d3.select('#'+target).selectAll('.taxon-options').data(blobplot.taxorder);
-	taxa.enter().append('div').attr('class','.taxon-options');
+	var taxa = {};
+	this.taxorder.forEach(function(taxon,i){
+		taxa[taxon] = {};
+		taxa[taxon].visible = true;
+	});
+	d3.select('#'+target).selectAll('div').remove();
+	var taxdivs = d3.select('#'+target).selectAll('.taxon-options').data(blobplot.taxorder);
+	taxdivs.enter().append('div').attr('class','.taxon-options');
 	
 	//taxa.html('');
-	taxa.attr('rel',function(d){return d});
-	taxa.append('div')
+	taxdivs.attr('rel',function(d){return d});
+	taxdivs.append('div')
 		.attr('class','tax-select')
-	var checkbox = taxa.append('input').attr('type','checkbox')
+	var checkbox = taxdivs.append('input').attr('type','checkbox')
 						.attr('class','taxon-toggle')
-						.attr('rel',function(d){ return d.name; })
+						.attr('rel',function(d){ return d; })
 						.property('checked',function(d){ return true; })
 						.on('click',function(){
 							var checkbox = d3.select(this);
-							blobplot.toggleTaxon(checkbox.attr('rel'))
+							blobplot.toggleTaxon(checkbox.attr('rel'),checkbox.property('checked'))
 						});
-	taxa.append('div')
+	taxdivs.append('div')
 		.attr('class','tax-color')
 		.style('background-color',function(d){return blobplot.colormap[d]});
-	taxa.append('div')
+	taxdivs.append('div')
 		.text(function(d){return d});
 	
-	taxa.exit().remove();
-	// TODO!
+	taxdivs.exit().remove();
+	this.taxa = taxa;
 	
 }
 
@@ -234,9 +245,21 @@ Blobplot.prototype.filterTaxa = function(){
 	this.filteredPoints = points;
 	this.filteredOrder = order;
 	
-	/* relocate this code
+	
+}
+
+Blobplot.prototype.unFilterTaxa = function(){
+	this.filteredPoints = null;
+	return 1;
+}
+
+Blobplot.prototype.limitTaxa = function(){
 	// limit number of unique taxon names to display
-	if (Object.keys(points).length > this.maxgroups){
+	var points = this.displaypoints;
+	if (!points){
+		points = this.points;
+	}
+	//if (Object.keys(points).length > this.maxgroups){
 		var sorted = getSortedKeys(points);
 		var sortedpoints = {};
 		var taxorder = [];
@@ -257,17 +280,13 @@ Blobplot.prototype.filterTaxa = function(){
 		});
 		this.displaypoints = sortedpoints;
 		this.taxorder = taxorder;
-	}*/
-}
-
-Blobplot.prototype.unFilterTaxa = function(){
-	this.filteredPoints = null;
-	return 1;
+	//}
 }
 
 Blobplot.prototype.assignColors = function(){
 	// assign colours automatically (add option to chose colours for taxa)
 	var colormap = {};
+	this.limitTaxa();
 	var maxgroups = this.maxgroups;
 	var palette = this.palette;
 	if (!this.filteredOrder){
@@ -283,6 +302,8 @@ Blobplot.prototype.assignColors = function(){
 		}
 	});
 	this.colormap = colormap;
+	
+	
 }
 
 
@@ -336,14 +357,17 @@ Blobplot.prototype.createCellFilter = function(name){
 	   };
 	filter.contigs = [];
 	var hexed = this.hexed;
+	var taxa = this.taxa;
 	for( var taxon in hexed ) {
     	if( hexed.hasOwnProperty( taxon ) ) {
-    		for( var cell in filter.value ) {
-    			if( filter.value.hasOwnProperty( cell ) ) {
-    				if (hexed[taxon][cell]){
-    					hexed[taxon][cell].forEach(function(arr,i){
-    						filter.contigs.push(arr[2]);
-    					});
+    		if (taxa[taxon].visible){
+    			for( var cell in filter.value ) {
+    				if( filter.value.hasOwnProperty( cell ) ) {
+    					if (hexed[taxon][cell]){
+    						hexed[taxon][cell].forEach(function(arr,i){
+    							filter.contigs.push(arr[2]);
+    						});
+    					}
     				}
     			}
     		}
@@ -377,9 +401,16 @@ Blobplot.prototype.applyContigFilter = function(name){
 
 Blobplot.prototype.binContigs = function(){
 	var hexed = {};
-	for( var taxon in this.points ) {
-    	if( this.points.hasOwnProperty( taxon ) ) {
-    		hexed[taxon] = this.hexbin(this.points[taxon])
+	if (!this.displaypoints){
+		this.displaypoints = this.filteredPoints;
+		if (!this.displaypoints){
+			this.displaypoints = this.points;
+		}
+	
+	}
+	for( var taxon in this.displaypoints ) {
+    	if( this.displaypoints.hasOwnProperty( taxon ) ) {
+    		hexed[taxon] = this.hexbin(this.displaypoints[taxon])
 		}
 	}
 	this.hexed = hexed;
@@ -402,6 +433,7 @@ Blobplot.prototype.toggleCell = function(el){
 }
 
 Blobplot.prototype.plotBlobs = function(target){
+	d3.select('#'+target).select('svg').remove();
 	var svg = d3.select('#'+target).append("svg")
         .attr("width", this.width + this.margin.left + this.margin.right)
         .attr("height", this.height + this.margin.top + this.margin.bottom)
@@ -441,7 +473,7 @@ Blobplot.prototype.plotBlobs = function(target){
 	    if( hexed.hasOwnProperty( taxon ) ) {
 	    	hexg.append("g")
 	    		.attr("clip-path", "url(#clip)")
-	    		.attr("class", taxon)
+	    		.attr("class", function(){ var css = taxon; if (blobplot.taxa && blobplot.taxa[taxon] && !blobplot.taxa[taxon].visible){ css += ' hidden'} return css;} )
 	  			.selectAll(".hexagon")
 	    		.data(d3.values(hexed[taxon]))
 	  			.enter().append("path")
@@ -458,11 +490,11 @@ Blobplot.prototype.plotBlobs = function(target){
 	    
 	    	overg.append("g")
 	    		.attr("clip-path", "url(#clip)")
-	    		.attr("class", taxon)
+	    		.attr("class", function(){ var css = taxon; if (blobplot.taxa && blobplot.taxa[taxon] && !blobplot.taxa[taxon].visible){ css += ' hidden'} return css;} )
 	  			.selectAll(".hexagon")
 	    		.data(d3.values(hexed[taxon]))
 	  			.enter().append("path")
-	    			.attr("class", "overlay")
+	    			.attr("class", function(d){ return "overlay c"+d.id })
 	    			.attr("rel", function(d) { return d.id; })
 	    			.attr("d", function(d) { return hexbin.hexagon(12.5); })
 	    			.attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
@@ -490,8 +522,9 @@ Blobplot.prototype.plotBlobs = function(target){
 	
 }
 
-Blobplot.prototype.toggleTaxon = function(name){
-	d3.selectAll('g.'+name).classed('hidden',true);
+Blobplot.prototype.toggleTaxon = function(name,bool){
+	d3.selectAll('g.'+name).classed('hidden',!bool);
+	this.taxa[name].visible = bool;
 }
 
 Blobplot.prototype.toggleFilter = function(name){
@@ -528,6 +561,9 @@ Blobplot.prototype.showFilters = function(target){
 Blobplot.prototype.applyFilters = function(){
 	console.time('draw')
 	console.time('filter')
+	this.filteredPoints = null;
+	this.filteredOrder = null;
+	this.displaypoints = null;
 	this.filterContigs();
 	console.timeEnd('filter')
 	
@@ -548,6 +584,7 @@ Blobplot.prototype.applyFilters = function(){
 	d3.select('#blob-plot > input').remove();
 	this.plotBlobs('blob-plot');
 	
+	this.showTaxa('taxa');
 	// add linear filter controls
 	//blob.addAxialFilters('blob-plot');
 	
@@ -584,6 +621,26 @@ Blobplot.prototype.applyFilters = function(){
     	.call(drag)
 }*/
 
+Blobplot.prototype.selectAll = function(){
+	var hexed = this.hexed;
+	for( var taxon in hexed ) {
+	    if( hexed.hasOwnProperty( taxon ) ) {
+	    	if (!this.taxa || !this.taxa[taxon] || this.taxa[taxon].visible){
+	    		for (var cell in hexed[taxon]){
+	    			if( hexed[taxon].hasOwnProperty( cell ) ) {
+	    				d3.select('.c'+cell).classed('selected',true)
+	    			}
+	    		}
+	    	}
+	    }
+	}
+	return 1;
+}
+Blobplot.prototype.selectNone = function(){
+	this.cells = {};
+	d3.selectAll('.selected').each(function(){d3.select(this).classed('selected',false)});
+	return 1;
+}
 
 var blob;
 
@@ -635,6 +692,8 @@ d3.json("json/blob.BlobDB.smaller.json", function(error, json) {
 	
 	d3.select('#new-filter-submit').on("click",function(){ blob.createCellFilter(document.getElementById("filter-name-input").value)});
 	d3.select('#apply-filters').on("click",function(){ blob.applyFilters()});
+	d3.select('#select-all').on("click",function(){ blob.selectAll()});
+	d3.select('#select-none').on("click",function(){ blob.selectNone()});
 });
 
 
