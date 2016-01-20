@@ -38,7 +38,7 @@ function Blobplot (data,options){
         
         radius:		d3.scale.log()
 	    				.domain([1, 4000])
-	    				.range([0.1, 15]),
+	    				.range([2, 15]),
 	    hexbin:		d3.hexbin()
 	    				.size([10, 10])
 	    				.radius(0.1429),
@@ -330,7 +330,7 @@ Blobplot.prototype.plotBlobs = function(target){
 		hexagons.exit().remove();
 	groups.exit().remove();
 	
-	var overlay = overg.attr("clip-path", "url(#clip)").selectAll(".hexagon").data(d3.values(hexall))
+	var overlay = overg.attr("clip-path", "url(#clip)").selectAll(".overlay").data(d3.values(hexall))
 	overlay.enter().append("path")
 	overlay.attr("id", function(d){ return "cell_"+d.id })
 	    .attr("class", function(d){ return "overlay c"+d.id })
@@ -365,7 +365,7 @@ Blobplot.prototype._filterContigs = function(){
 	for( var filter in this.contigFilters ) {
     	if( this.contigFilters.hasOwnProperty( filter ) ) {
     		if (this.contigFilters[filter].active){
-    			this.applyContigFilter(filter);
+    			this._applyContigFilter(filter);
     		}
     	}
     }
@@ -404,14 +404,14 @@ Blobplot.prototype._filterTaxa = function(){
 	var points = {};
 	var order = this.taxorder.slice(0);
 	if (filter == 'exclude'){
-		points = clone(this.points);
+		points = clone(this.Points());
 		taxa.forEach(function(taxon,i){
 			delete points[taxon]
 		});
 		order = removeItems(order,taxa);
 	}
 	else { // include taxa in filter
-		var origpoints = this.points;
+		var origpoints = this.Points();
 		taxa.forEach(function(taxon,i){
 			if (origpoints[taxon]){
 				points[taxon] = origpoints[taxon]
@@ -601,7 +601,7 @@ Blobplot.prototype.createCellFilter = function(name){
 	var taxa = this.taxa;
 	for( var taxon in hexed ) {
     	if( hexed.hasOwnProperty( taxon ) ) {
-    		if (taxa[taxon].visible){
+    		if (taxa[taxon] && taxa[taxon].visible){
     			for( var cell in filter.value ) {
     				if( filter.value.hasOwnProperty( cell ) ) {
     					if (hexed[taxon][cell]){
@@ -681,32 +681,15 @@ Blobplot.prototype.showFilters = function(target){
 Blobplot.prototype.applyFilters = function(){
 	console.time('draw')
 	console.time('filter')
-	this.filteredPoints = null;
-	this.filteredOrder = null;
-	this.displaypoints = null;
-	this.filterContigs();
+	this.points = null;
+	this.hexed = null;
+	this.colormap = null;
+	this.taxorder = null;
+	this._filterContigs();
 	console.timeEnd('filter')
-	
-	n_contigs = this.applyRules();
-	console.log(n_contigs);
-	if (this.Collection(this.Rank())){
-		// filter taxa to display
-		this.filterTaxa();
-	}
-	// set colours
-	this.assignColors();
-	
-	// bin contigs
-	this.binContigs();
-	
-	// plot blobs
-	d3.select('#blob-plot > svg').remove();
-	d3.select('#blob-plot > input').remove();
-	this.plotBlobs('blob-plot');
-	
-	this.showTaxa('taxa');
-	// add linear filter controls
-	//blob.addAxialFilters('blob-plot');
+	this.plotBlobs();
+	console.timeEnd('draw');
+	this.showTaxa();
 	
 	console.timeEnd('draw');
 }
