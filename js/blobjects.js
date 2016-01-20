@@ -282,6 +282,77 @@ Blobplot.prototype.Hexed = function(taxon){
 	return this.hexed;
 }
 
+Blobplot.prototype.plotBlobs = function(target){
+	var hexg = this.hexgroup;
+	var overg = this.overgroup;
+	var hexed = this.Hexed();
+	var hexall = this.Hexed('all');
+	var radius = this.radius;
+	var colormap = this.ColorMap();
+	var hexbin = this.hexbin;
+	var x = this.x;
+	var y = this.y;
+	
+	var blobplot = this;
+	
+	var data = [];
+	this.Taxorder().forEach(function(taxon){
+		data.push({key:taxon,values:blobplot.Hexed(taxon)});
+	});
+	
+	var bins = {};
+	
+	var groups = hexg.selectAll('g').data(data);
+	groups.enter().append('g');
+	var hexagons = groups.attr("clip-path", "url(#clip)")
+	    	.attr("class", function(d){ var css = d.key; if (blobplot.taxa && blobplot.taxa[d.key] && !blobplot.taxa[d.key].visible){ css += ' hidden'} return css;} )
+	  		.selectAll(".hexagon").data(function(d){var tax = d.key;
+	  												var arr = d3.values(d.values);
+	  													arr.forEach(function(value){
+	  														value.key = tax;
+	  													});
+	  												return arr;
+	  								});
+		hexagons.enter().append("path");
+		hexagons.attr("class", "hexagon")
+	    		.style("fill", function(d){ return colormap[d.key]})
+	    		.style("opacity", function(d) { return radius(d.length)/15; })
+	    		.attr("rel", function(d) { bins[d.id] = bins[d.id] ? bins[d.id] + 1 : 1; return d.id; })
+	    		.attr("d", function(d) { return hexbin.hexagon(radius(d.length)); })
+	    		.attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
+		hexagons.exit().remove();
+	groups.exit().remove();
+	console.log(bins);
+	var overlay = overg.attr("clip-path", "url(#clip)").selectAll(".hexagon").data(d3.values(hexall))
+	overlay.enter().append("path")
+	overlay.attr("id", function(d){ return "cell_"+d.id })
+	    .attr("class", function(d){ return "overlay c"+d.id })
+	    .attr("rel", function(d) { return d.id; })
+	    .style("stroke",function(d){return 'rgba(0,0,0,'+(0.1+bins[d.id]/20)+')'})
+	    .classed("hidden",function(d){if (!bins[d.id]) {return true}})
+	    .attr("d", function(d) { return hexbin.hexagon(12.5); })
+	    .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
+	    .on("mousedown",function(){
+	    	if (d3.select(this).classed("selected")){
+				blobplot.dragging = 'off';
+			}
+			else {
+				blobplot.dragging = 'on';
+			}
+	    	blobplot.toggleCell(this);
+	    })
+	    .on("mouseover",function(){
+	    	if (blobplot.dragging){
+	    		blobplot.toggleCell(this);
+	    	}
+	    })
+	    .on("mouseup",function(){
+	    	blobplot.dragging = false;
+//	    	treemap ()
+	    })
+	overlay.exit().remove();
+}
+
 Blobplot.prototype._filterContigs = function(){
 	this.filteredblobs = clone(this.blobs);
 	for( var filter in this.contigFilters ) {
@@ -559,98 +630,8 @@ Blobplot.prototype.toggleCell = function(el){
     
 }
 
-Blobplot.prototype.plotBlobs = function(target){
-	/*
-	d3.select('#'+target).select('svg').remove();
-	var svg = d3.select('#'+target).append("svg")
-        .attr("width", this.width + this.margin.left + this.margin.right)
-        .attr("height", this.height + this.margin.top + this.margin.bottom)
-        .attr("id",target+"_svg")
-        .append("g")
-        .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
 
-	svg.append("clipPath")
-        .attr("id", "clip")
-        .append("rect")
-        .attr("class", "mesh")
-        .attr("width", this.width)
-        .attr("height", this.height);
 
-	svg.append("g")
-        .attr("class", "y axis")
-        .call(this.yAxis);
-
-    svg.append("g")
-        .attr("class", "x axis")
-        .attr("transform", "translate(0," + this.height + ")")
-        .call(this.xAxis);
-
-	var hexg = svg.append("g");
-	var overg = svg.append("g").attr("clip-path", "url(#clip)");
-	*/
-	var hexg = this.hexgroup;
-	var overg = this.overgroup;
-	var hexed = this.Hexed();
-	var radius = this.radius;
-	var colormap = this.ColorMap();
-	var hexbin = this.hexbin;
-	var x = this.x;
-	var y = this.y;
-	
-	var blobplot = this;
-	
-	for( var taxon in hexed ) {
-	    if( hexed.hasOwnProperty( taxon ) ) {
-	    	hexg.append("g")
-	    		.attr("clip-path", "url(#clip)")
-	    		.attr("class", function(){ var css = taxon; if (blobplot.taxa && blobplot.taxa[taxon] && !blobplot.taxa[taxon].visible){ css += ' hidden'} return css;} )
-	  			.selectAll(".hexagon")
-	    		.data(d3.values(hexed[taxon]))
-	  			.enter().append("path")
-	    			.attr("class", "hexagon")
-	    			.style("fill", colormap[taxon])
-	    			.style("opacity", function(d) { return radius(d.length)/15; })
-	    			.attr("rel", function(d) { return d.id; })
-	    			.attr("d", function(d) { return hexbin.hexagon(radius(d.length)); })
-	    			.attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
-	    //.on("click",function(){treemap (d3.select(this).attr("rel"))})
-	    //.append("svg:title")
-	    //      .text(function(d, i) { return d.length; });
-	    
-	    
-	    	overg.append("g")
-	    		.attr("clip-path", "url(#clip)")
-	    		.attr("class", function(){ var css = taxon; if (blobplot.taxa && blobplot.taxa[taxon] && !blobplot.taxa[taxon].visible){ css += ' hidden'} return css;} )
-	  			.selectAll(".hexagon")
-	    		.data(d3.values(hexed[taxon]))
-	  			.enter().append("path")
-	    			.attr("class", function(d){ return "overlay c"+d.id })
-	    			.attr("rel", function(d) { return d.id; })
-	    			.attr("d", function(d) { return hexbin.hexagon(12.5); })
-	    			.attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
-	    			.on("mousedown",function(){
-	    				if (d3.select(this).classed("selected")){
-							blobplot.dragging = 'off';
-						}
-						else {
-							blobplot.dragging = 'on';
-						}
-	    				blobplot.toggleCell(this);
-	    			})
-	    			.on("mouseover",function(){
-	    				if (blobplot.dragging){
-	    					blobplot.toggleCell(this);
-	    				}
-	    			})
-	    			.on("mouseup",function(){
-	    				blobplot.dragging = false;
-//	    				treemap ()
-	    			})
-	   	 
-		}
-	}
-
-}
 
 Blobplot.prototype.toggleTaxon = function(name,bool){
 	d3.selectAll('g.'+name).classed('hidden',!bool);
@@ -722,48 +703,17 @@ Blobplot.prototype.applyFilters = function(){
 }
 
 
-/*Blobplot.prototype.addAxialFilters = function(target){
-	var svg = d3.select('#'+target+'_svg');
-    var gc = svg.append('g')
-    	.attr("width", this.width)
-    	.attr("height", this.margin.top)
-        .attr("transform", "translate(" + this.margin.left + ",0)");
-
-	var drag = d3.behavior.drag()
-        .on("drag", function(d,i) {
-            d.x += d3.event.dx
-            d.y += d3.event.dy
-            d3.select(this).attr("transform", function(d,i){
-                return "translate(" + [ d.x,d.y ] + ")"
-            })
-        });
-
-	var data = [{x:this.x(0),y:0,w:this.margin.top/2,h:this.margin.top/2},{x:this.x(1),y:0,w:-this.margin.top/2,h:this.margin.top/2}]
-	gc.selectAll('polygon').data(data).enter().append('polygon')
-    	.attr("points", function(d){ 	return "0,"+d.y+" 0,"+(d.y+d.h)+" "+d.w+","+(d.y+d.h/2) 
-    								})
-    	//.attr("width", this.margin.top)
-    	//.attr("height", this.margin.top)
-    	.call(drag)
-		
-	gc.append('polygon')
-    	.attr("points", this.width+","+this.margin.top/2+" "+this.width+","+this.margin.top+" "+(this.width-this.margin.top/2)+","+3*this.margin.top/4 )
-    	.call(drag)
-}*/
 
 Blobplot.prototype.selectAll = function(){
-	var hexed = this.hexed;
-	for( var taxon in hexed ) {
-	    if( hexed.hasOwnProperty( taxon ) ) {
-	    	if (!this.taxa || !this.taxa[taxon] || this.taxa[taxon].visible){
-	    		for (var cell in hexed[taxon]){
-	    			if( hexed[taxon].hasOwnProperty( cell ) ) {
-	    				d3.select('.c'+cell).classed('selected',true)
-	    			}
-	    		}
-	    	}
-	    }
-	}
+	var hexed = this.Hexed('all');
+	var cells = this.cells;
+	Object.keys(hexed).forEach(function(bin){
+		var cell = d3.select('#cell_'+bin);
+		if (!cell.classed('hidden')){
+			cell.classed('selected',true);
+			cells[bin] = 1;
+		}
+	});
 	return 1;
 }
 Blobplot.prototype.selectNone = function(){
