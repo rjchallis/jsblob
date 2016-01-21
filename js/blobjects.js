@@ -1,6 +1,6 @@
 // blobjects.js globals and objects for interactive blob plots
 
-var dispatch = d3.dispatch("load", "select", "blobselect", "mapselect", "mapzoom", "rankchange", "filter");
+var dispatch = d3.dispatch("load", "toggletaxa", "select", "blobselect", "mapselect", "mapzoom", "rankchange", "filter");
 
 function Blobplot (data,options){
 	this.blobs = data.dict_of_blobs;
@@ -114,7 +114,7 @@ function Blobplot (data,options){
 
 
 Blobplot.prototype.setupMenus = function(){
-	var treediv = d3.select("#menu")
+	var treediv = d3.select("#menus")
     .style("position", "absolute")
     .style("width", this.width + "px")
     .style("height", this.height + "px")
@@ -531,6 +531,7 @@ Blobplot.prototype.showTaxa = function(target){
 						.on('click',function(){
 							var checkbox = d3.select(this);
 							blobplot.toggleTaxon(checkbox.attr('rel'),checkbox.property('checked'))
+							dispatch.toggletaxa(blobplot);
 						});
 	taxdivs.append('div')
 		.attr('class','tax-color')
@@ -705,11 +706,12 @@ Blobplot.prototype.applyFilters = function(){
 
 
 Blobplot.prototype.selectAll = function(){
+	this.selectNone(1);
 	var hexed = this.Hexed();
 	var cells = this.cells;
 	var blobplot = this;
 	Object.keys(hexed).forEach(function(taxon){
-		if (blobplot.taxa[taxon].visible){
+		if (blobplot.taxa[taxon] && blobplot.taxa[taxon].visible){
 			Object.keys(hexed[taxon]).forEach(function(bin){
 				var cell = d3.select('#cell_'+bin);
 				if (!cell.classed('hidden')){
@@ -719,10 +721,29 @@ Blobplot.prototype.selectAll = function(){
 			});
 		}
 	});
+	dispatch.toggletaxa(blobplot);
 	return 1;
 }
 
-Blobplot.prototype.simpleSelectAll = function(){
+Blobplot.prototype.selectCells = function(cells){
+	var hexed = this.Hexed();
+	cells = cells || {};
+	var blobplot = this;
+	Object.keys(cells).forEach(function(bin){
+		var cell = d3.select('#cell_'+bin);
+		if (!cell.classed('hidden')){
+			cell.classed('selected',true);
+		}
+		else {
+			delete cells[bin];
+		}
+	});
+	dispatch.toggletaxa(blobplot);
+	return 1;
+}
+
+
+Blobplot.prototype.simpleSelectAll = function(option){
 	var hexed = this.Hexed('all');
 	var cells = this.cells;
 	Object.keys(hexed).forEach(function(bin){
@@ -732,6 +753,9 @@ Blobplot.prototype.simpleSelectAll = function(){
 			cells[bin] = 1;
 		}
 	});
+	if (!option){
+		dispatch.toggletaxa(blobplot);
+	}
 	return 1;
 }
 
@@ -972,12 +996,27 @@ dispatch.on('load.tree',function(blob){
 
 dispatch.on('rankchange.blob',function(blob){
 	// clear blob.points
+	var cells = clone(blob.cells);
 	blob.points = null;
 	blob.hexed = null;
 	blob.colormap = null;
 	blob.taxorder = null;
 	blob.plotBlobs();
+	blob.selectCells(cells);
 	blob.showTaxa();
+});
+
+
+dispatch.on('rankchange.tree',function(blob){
+	// clear blob.points
+	blob.generateTreemap();
+	blob.drawTreemap();
+});
+
+dispatch.on('toggletaxa.tree',function(blob){
+	// clear blob.points
+	blob.generateTreemap();
+	blob.drawTreemap();
 });
 
 
