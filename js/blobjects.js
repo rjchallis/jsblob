@@ -114,6 +114,13 @@ function Blobplot (data,options){
 
 
 Blobplot.prototype.setupMenus = function(){
+	var treediv = d3.select("#menu")
+    .style("position", "absolute")
+    .style("width", this.width + "px")
+    .style("height", this.height + "px")
+    .style("left", this.margin.left + "px")
+    .style("top", this.margin.top + "px");
+
 	blob.showFilters('filters');
 	blob.ranksDropdown('ranks');
 	//blob.showTaxa('taxa');
@@ -625,7 +632,7 @@ Blobplot.prototype.createCellFilter = function(name){
 
 Blobplot.prototype.toggleCell = function(el){
 	var cell = d3.select(el)
-	//clearTimeout(redraw);
+	clearTimeout(this.redraw);
 	if (cell.classed("selected") && this.dragging == 'off'){
 		cell.classed("selected", false);
     	delete this.cells[cell.attr("rel")];
@@ -634,8 +641,9 @@ Blobplot.prototype.toggleCell = function(el){
 		cell.classed("selected", true);
 		this.cells[cell.attr("rel")] = 1;
     }
-    //var delay = dragging ? 500 : 0;
-    //redraw = setTimeout(function(){treemap ()},delay);
+    this.delay = this.dragging ? 500 : 0;
+    var blobplot = this;
+    this.redraw = setTimeout(function(){blobplot.generateTreemap();blobplot.drawTreemap();},blobplot.delay);
     
 }
 
@@ -734,6 +742,188 @@ Blobplot.prototype.selectNone = function(){
 	return 1;
 }
 
+
+
+
+/* TREEMAPS
+
+*/
+
+function getReadableSeqSizeString(seqSizeInBases,fixed) {
+//http://stackoverflow.com/questions/10420352/converting-file-size-in-bytes-to-human-readable
+    
+    var i = -1;
+    var baseUnits = [' kB', ' MB', ' GB', ' TB', 'PB', 'EB', 'ZB', 'YB'];
+    do {
+        seqSizeInBases = seqSizeInBases / 1000;
+        i++;
+    } while (seqSizeInBases >= 1000);
+	fixed = fixed ? fixed : fixed == 0 ? 0 : 1;
+    return Math.max(seqSizeInBases, 0.1).toFixed(fixed) + baseUnits[i];
+};
+
+Blobplot.prototype.setupTreemap = function(){
+var treediv = d3.select("#treemap-plot")
+    .style("position", "absolute")
+    .style("width", (this.width + this.margin.left + this.margin.right) + "px")
+    .style("height", (this.height + this.margin.top + this.margin.bottom) + "px")
+    .style("left", this.width + this.margin.left + "px")
+    .style("top", this.margin.top + "px");
+}
+
+Blobplot.prototype._addNodes = function (parent,taxon,bin){
+	console.log('here')
+	var hexed = this.Hexed(taxon);
+	if (!hexed){
+		return;
+	}
+	var contigs = d3.values(hexed[bin]);
+	var blobs = this.Blobs();
+	var taxrule = this.Taxrule();
+	var cov = this.Cov();
+	var rank = parent;
+		
+	var taxa = {};
+	var children = [];
+	contigs.forEach(function (arr,i){
+		//arr[2] = contig name
+		if (arr[2] && blobs[arr[2]]){
+			name = blobs[arr[2]].taxonomy[taxrule][rank].t;
+			if (!taxa[name]){
+				taxa[name] = {}
+				taxa[name].size = 0
+				taxa[name].c_indices = {}
+			}
+			//arr[3] = contig span
+			taxa[name].size += arr[3];
+			c_index = blobs[arr[2]].taxonomy[taxrule][parent].c;
+			c_index = c_index > 1 ? 1 : c_index;
+			if (!taxa[name].c_indices[c_index]){
+				taxa[name].c_indices[c_index] = 0
+			}
+			taxa[name].c_indices[c_index]+=arr[3];
+		}
+	});
+	Object.keys(taxa).forEach(function(name){
+		var tmp = {};
+    	tmp.name = name;
+    	tmp.size = taxa[name].size;
+    		/*tmp.children = [];
+    		for( var c_index in taxa[name].c_indices ) {
+    			if( taxa[name].c_indices.hasOwnProperty( c_index ) ) {
+    				var ttmp = {}
+    				ttmp.name = c_index;
+    				ttmp.size = taxa[name].c_indices[c_index];
+    				tmp.children.push(ttmp);
+    			}
+    		}*/
+		children.push(tmp);
+		
+	});
+	return children;
+}
+
+function combine (arr1,arr2){
+    var arr3 = [];
+	for(var i in arr1){
+   		var shared = false;
+   		for (var j in arr2){
+       		if (arr2[j].name == arr1[i].name) {
+           		shared = true;
+           		arr2[j].size += arr1[i].size;
+       		}
+   			
+   		}
+   		if(!shared) arr3.push(arr1[i])
+	}
+	for (var j in arr2){
+	arr3.push(arr2[j]);
+	}
+	return arr3;
+}
+
+Blobplot.prototype.generateTreemap = function(root){
+
+	if (!root){
+		root = this.Rank();
+	}
+	var cells = this.cells;
+	var blobplot = this;
+	var treemap = d3.layout.treemap()
+    	.size([this.width, this.height])
+    	.sticky(true)
+    	.value(function(d) { return d.size; });
+	
+	var tree = {};
+	tree.name = root;
+	tree.children = [];
+	// TODO: replace hack
+	var active = [];
+	Object.keys(this.taxa).forEach(function(taxon){
+		if (blobplot.taxa[taxon].visible == true){
+			active.push(taxon);
+		}
+	});
+	active.forEach(function (taxon,index){
+    	var tmp = {};
+		tmp.name = taxon;
+		tmp.size = 0;
+		var hexed = blobplot.Hexed(taxon);
+		Object.keys(cells).forEach(function(bin){	
+			if (hexed && hexed[bin]){
+				tmp.size += hexed[bin].span;
+				if (blobplot.ranks[root] && taxon != "nh"){
+					if (!tmp.children){
+						tmp.children = blobplot._addNodes(blobplot.ranks[root],taxon,bin);
+					}
+					else {
+						tmp.children = combine(tmp.children,blobplot._addNodes(blobplot.ranks[root],taxon,bin));
+					}
+				}
+			
+			}
+		});
+		tree.children.push(tmp);
+	});
+	
+	this.tree = tree;
+	this.treemap = treemap;
+}
+
+Blobplot.prototype.drawTreemap = function(){
+	function position() {
+		this.transition().duration(500)
+			.style("left", function(d) { return d.x + "px"; })
+			.style("top", function(d) { return d.y + "px"; })
+			.style("width", function(d) { return Math.max(0, d.dx - 1) + "px"; })
+			.style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
+	}
+
+	var blobplot = this;
+	var node = d3.select("#treemap-plot").datum(this.tree).selectAll(".node")
+		.data(this.treemap.nodes);
+  	node.enter().append("div")
+  	node.attr("class", "node")
+		.call(position)
+		.style("background", function(d) { return d.children ? blobplot.colormap[d.name] : blobplot.colormap[d.name]})//: "grey"; })
+     // .style("opacity", function(d) { return d.children ? 1 : d.name == 0 ? 0 : 0.5; })
+     // .style("pointer-events", function(d) { return d.children ? 'auto' : 'none'; })
+    	.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? d.name + ': ' + span : d.name + ': ' + span})// : null ; })
+    	.text(function(d) { return d.children ? null : d.name})// : null; });
+	node.exit().remove()
+}
+
+
+/*
+
+ TREEMAPS */ 
+
+
+
+
+
+
+
 var blob;
 
 d3.json("json/blob.BlobDB.smaller.json", function(error, json) {
@@ -774,6 +964,10 @@ dispatch.on('load.blob',function(blob){
 
 dispatch.on('load.menu',function(blob){
 	blob.setupMenus();
+});
+
+dispatch.on('load.tree',function(blob){
+	blob.setupTreemap();
 });
 
 dispatch.on('rankchange.blob',function(blob){
