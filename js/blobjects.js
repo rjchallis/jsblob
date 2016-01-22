@@ -557,7 +557,7 @@ Blobplot.prototype.showTaxa = function(prevtaxa){
 	var taxa = {};
 	this.taxorder.forEach(function(taxon,i){
 		taxa[taxon] = {};
-		taxa[taxon].visible = (!prevtaxa.hasOwnProperty(taxon) || prevtaxa[taxon] == true) ? true : false;
+		taxa[taxon].visible = (!prevtaxa.hasOwnProperty(taxon) || prevtaxa[taxon].visible == true) ? true : false;
 	});
 	d3.select('#'+target).selectAll('div').remove();
 	var taxdivs = d3.select('#'+target).selectAll('.taxon-options').data(blobplot.taxorder);
@@ -751,7 +751,6 @@ Blobplot.prototype.applyFilters = function(){
 	this.plotBlobs();
 	console.timeEnd('draw');
 	this.showTaxa(taxa);
-	
 	console.timeEnd('draw');
 }
 
