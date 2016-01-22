@@ -145,6 +145,11 @@ Blobplot.prototype.setupPlot = function(){
         .attr("width", this.width + this.margin.left + this.margin.right)
         .attr("height", this.height + this.margin.top + this.margin.bottom)
         .attr("id",this.blobdiv+"_svg");
+    var blobplot = this;
+    svg.on("mouseup",function(){
+	    	blobplot.dragging = false;
+	    });
+	    
     var plotarea = svg.append("g")
         .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
 
@@ -376,7 +381,6 @@ Blobplot.prototype.plotBlobs = function(target){
 	    })
 	    .on("mouseup",function(){
 	    	blobplot.dragging = false;
-//	    	treemap ()
 	    })
 	overlay.exit().remove();
 }
