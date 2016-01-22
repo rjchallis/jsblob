@@ -793,7 +793,7 @@ Blobplot.prototype.selectNone = function(option){
 	this.cells = {};
 	d3.selectAll('.selected').each(function(){d3.select(this).classed('selected',false)});
 	if (!option){
-		dispatch.toggletaxa(blobplot);
+		dispatch.toggletaxa(this);
 	}
 	return 1;
 }
