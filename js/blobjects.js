@@ -668,7 +668,15 @@ Blobplot.prototype.toggleCell = function(el){
     }
     this.delay = this.dragging ? 500 : 0;
     var blobplot = this;
-    this.redraw = setTimeout(function(){blobplot.generateTreemap();blobplot.drawTreemap();},blobplot.delay);
+    this.redraw = setTimeout(function(){
+    		if (Object.keys(blobplot.cells).length > 0){
+				blobplot.generateTreemap();
+				blobplot.drawTreemap();
+			}
+			else {
+				d3.select("#treemap-plot").selectAll('.node').transition().duration(500).style('opacity',0).remove();
+			}
+    	},blobplot.delay);
     
 }
 
@@ -1031,15 +1039,23 @@ dispatch.on('rankchange.blob',function(blob){
 
 
 dispatch.on('rankchange.tree',function(blob){
-	// clear blob.points
-	blob.generateTreemap();
-	blob.drawTreemap();
+	if (Object.keys(blob.cells).length > 0){
+		blob.generateTreemap();
+		blob.drawTreemap();
+	}
+	else {
+		d3.select("#treemap-plot").selectAll('.node').remove();
+	}
 });
 
 dispatch.on('toggletaxa.tree',function(blob){
-	// clear blob.points
-	blob.generateTreemap();
-	blob.drawTreemap();
+	if (Object.keys(blob.cells).length > 0){
+		blob.generateTreemap();
+		blob.drawTreemap();
+	}
+	else {
+		d3.select("#treemap-plot").selectAll('.node').transition().duration(500).style('opacity',0).remove();
+	}
 });
 
 dispatch.on('resizebins.blob',function(blob,value){
