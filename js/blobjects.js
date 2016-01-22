@@ -798,6 +798,29 @@ Blobplot.prototype.selectNone = function(option){
 	return 1;
 }
 
+Blobplot.prototype.listContigs = function(option){
+	var contigs = [];
+	var cells = this.cells;
+	var hexed = this.hexed
+	var hexed = this.hexed;
+	var taxa = this.taxa;
+	for( var taxon in hexed ) {
+    	if( hexed.hasOwnProperty( taxon ) ) {
+    		if (taxa[taxon] && taxa[taxon].visible){
+    			for( var cell in cells) {
+    				if( cells.hasOwnProperty( cell ) ) {
+    					if (hexed[taxon][cell]){
+    						hexed[taxon][cell].forEach(function(arr,i){
+    							contigs.push(arr[2]);
+    						});
+    					}
+    				}
+    			}
+    		}
+    	}
+    }
+	return contigs;
+}
 
 
 
@@ -1009,6 +1032,7 @@ d3.json("json/blob.BlobDB.smaller.json", function(error, json) {
 	d3.select('#apply-filters').on("click",function(){ blob.applyFilters()});
 	d3.select('#select-all').on("click",function(){ blob.selectAll()});
 	d3.select('#select-none').on("click",function(){ blob.selectNone()});
+	d3.select('#list-contigs').on("click",function(){ console.log(blob.listContigs())});
 });
 
 dispatch.on('load.blob',function(blob){
