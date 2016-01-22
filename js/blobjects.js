@@ -1060,6 +1060,7 @@ dispatch.on('toggletaxa.tree',function(blob){
 
 dispatch.on('resizebins.blob',function(blob,value){
 	console.log(value);
+	blob.selectNone();
 	blob.binscale = value;
 	blob.hexbin.radius(0.04*value)
 	blob.hexed = null;
