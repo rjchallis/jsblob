@@ -344,7 +344,7 @@ Blobplot.prototype.plotBlobs = function(target){
 		hexagons.enter().append("path");
 		hexagons.attr("class", "hexagon")
 	    		.style("fill", function(d){ return colormap[d.key]})
-	    		.style("opacity", function(d) { return radius(d.length)/15; })
+	    		//.style("opacity", function(d) { return radius(d.length)/15; })
 	    		.attr("rel", function(d) { bins[d.id] = bins[d.id] ? bins[d.id] + 1 : 1; return d.id; })
 	    		.attr("d", function(d) {  return hexbin.hexagon(radius(blob.blobvalue(d))); })
 	    		.attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
@@ -358,7 +358,7 @@ Blobplot.prototype.plotBlobs = function(target){
 	    .attr("rel", function(d) { return d.id; })
 	    .style("stroke",function(d){return 'rgba(0,0,0,'+(0.1+bins[d.id]/20)+')'})
 	    .classed("hidden",function(d){if (!bins[d.id]) {return true}})
-	    .attr("d", function(d) { return hexbin.hexagon(radius(blob.maxbin)); })
+	    .attr("d", function(d) { return hexbin.hexagon(radius(blob.Maxbin())); })
 	    .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
 	    .on("mousedown",function(){
 	    	if (d3.select(this).classed("selected")){
@@ -502,6 +502,10 @@ function maxlen(obj){
 	return [max,maxspan];
 }
 
+Blobplot.prototype.Maxbin = function(){
+	return this.maxbincount;
+}
+
 Blobplot.prototype._binContigs = function(){
 	var hexed = {};
 	var all = [];
@@ -517,8 +521,7 @@ Blobplot.prototype._binContigs = function(){
 	maxes = maxlen(hexall);
 	this.maxbincount = maxes[0];
 	this.maxbinspan = maxes[1];
-	this.maxbin = maxes[0];
-	this.radius.domain([1,maxes[0]])
+	this.radius.domain([1,this.Maxbin()])
 	this.radius.range([2,3.6*this.binscale])
 }
 
@@ -542,14 +545,15 @@ Blobplot.prototype.ranksDropdown = function(target){
 	  							})
 }
 
-Blobplot.prototype.showTaxa = function(target){
+Blobplot.prototype.showTaxa = function(prevtaxa){
 	target = 'taxa';
 	var blobplot = this;
 	var colormap = this.ColorMap();
+	prevtaxa = prevtaxa || {};
 	var taxa = {};
 	this.taxorder.forEach(function(taxon,i){
 		taxa[taxon] = {};
-		taxa[taxon].visible = true;
+		taxa[taxon].visible = (!prevtaxa.hasOwnProperty(taxon) || prevtaxa[taxon] == true) ? true : false;
 	});
 	d3.select('#'+target).selectAll('div').remove();
 	var taxdivs = d3.select('#'+target).selectAll('.taxon-options').data(blobplot.taxorder);
@@ -562,7 +566,7 @@ Blobplot.prototype.showTaxa = function(target){
 	var checkbox = taxdivs.append('input').attr('type','checkbox')
 						.attr('class','taxon-toggle')
 						.attr('rel',function(d){ return d; })
-						.property('checked',function(d){ return true; })
+						.property('checked',function(d){ if (taxa[d].visible){ return true;} })
 						.on('click',function(){
 							var checkbox = d3.select(this);
 							blobplot.toggleTaxon(checkbox.attr('rel'),checkbox.property('checked'))
@@ -733,6 +737,7 @@ Blobplot.prototype.showFilters = function(target){
 Blobplot.prototype.applyFilters = function(){
 	console.time('draw')
 	console.time('filter')
+	var taxa = clone(this.taxa);
 	this.points = null;
 	this.hexed = null;
 	this.colormap = null;
@@ -741,7 +746,7 @@ Blobplot.prototype.applyFilters = function(){
 	console.timeEnd('filter')
 	this.plotBlobs();
 	console.timeEnd('draw');
-	this.showTaxa();
+	this.showTaxa(taxa);
 	
 	console.timeEnd('draw');
 }
@@ -1105,13 +1110,16 @@ dispatch.on('changescale.tree',function(blob,value){
 });
 
 dispatch.on('changescale.blob',function(blob,value){
+	var cells = clone(blob.cells);
 	blob.blobvalue = value === "count"
         ? function(d) { return d.length; }
         : function(d) { return d.span; };
-    blob.maxbin = value === "count"
-        ? blob.maxbincount
-        : blob.maxbinspan;
+    blob.Maxbin = value === "count"
+        ? function (){ return blob.maxbincount }
+        : function (){ return blob.maxbinspan; }
+	blob.radius.domain([1,blob.Maxbin()])
 	blob.plotBlobs();
+	blob.selectCells(cells);
 });
 
 dispatch.on('toggletaxa.tree',function(blob){
