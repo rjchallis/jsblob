@@ -1,6 +1,6 @@
 // blobjects.js globals and objects for interactive blob plots
 
-var dispatch = d3.dispatch("load", "toggletaxa", "resizebins", "select", "blobselect", "mapselect", "mapzoom", "rankchange", "filter");
+var dispatch = d3.dispatch("load", "toggletaxa", "resizebins", "changescale", "select", "blobselect", "mapselect", "mapzoom", "rankchange", "filter");
 
 function Blobplot (data,options){
 	this.blobs = data.dict_of_blobs;
@@ -13,11 +13,11 @@ function Blobplot (data,options){
 	var default_options = {
         maxgroups:   7,
         rank:        'k',
-        ranks:       {"k":"f","f":"o","o":"p"},
+        ranks:       {"k":"p","p":"o","o":"f"},
         ranknames:   {	"k":"superkingdom",
-						"f":"family",
+						"p":"phylum",
 						"o":"order",
-						"p":"phylum"
+						"f":"family"
 					},
 		taxrules:   {"bestsum":1},
 		taxrule:    "bestsum",
@@ -54,7 +54,10 @@ function Blobplot (data,options){
 	    				.range([0, width]),
 	    yax:		d3.scale.log()
 	    				.domain([0.0001, 1000000])
-	    				.range([height, 0])
+	    				.range([height, 0]),
+	    				
+	    treevalue:	function(d) { return d.count; },
+	    blobvalue:	function(d)	{ return d.length; }
     };
 
     options = options || {};
@@ -112,6 +115,8 @@ function Blobplot (data,options){
 	this.dragging = false;
 	this.cells = {};
 	
+	this.treevalue = options.treevalue;
+	this.blobvalue = options.blobvalue;
 }
 
 
@@ -341,7 +346,7 @@ Blobplot.prototype.plotBlobs = function(target){
 	    		.style("fill", function(d){ return colormap[d.key]})
 	    		.style("opacity", function(d) { return radius(d.length)/15; })
 	    		.attr("rel", function(d) { bins[d.id] = bins[d.id] ? bins[d.id] + 1 : 1; return d.id; })
-	    		.attr("d", function(d) { return hexbin.hexagon(radius(d.length)); })
+	    		.attr("d", function(d) {  return hexbin.hexagon(radius(blob.blobvalue(d))); })
 	    		.attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
 		hexagons.exit().remove();
 	groups.exit().remove();
@@ -353,7 +358,7 @@ Blobplot.prototype.plotBlobs = function(target){
 	    .attr("rel", function(d) { return d.id; })
 	    .style("stroke",function(d){return 'rgba(0,0,0,'+(0.1+bins[d.id]/20)+')'})
 	    .classed("hidden",function(d){if (!bins[d.id]) {return true}})
-	    .attr("d", function(d) { return hexbin.hexagon(radius(blob.maxbincount)); })
+	    .attr("d", function(d) { return hexbin.hexagon(radius(blob.maxbin)); })
 	    .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
 	    .on("mousedown",function(){
 	    	if (d3.select(this).classed("selected")){
@@ -485,12 +490,16 @@ Blobplot.prototype._assignColors = function(option){
 
 function maxlen(obj){
 	var max = 0;
+	var maxspan = 0;
 	Object.keys(obj).forEach(function(bin){
 		if (obj[bin].length > max){
 			max = obj[bin].length;
 		}
+		if (obj[bin].span > maxspan){
+			maxspan = obj[bin].span;
+		}
 	});
-	return max;
+	return [max,maxspan];
 }
 
 Blobplot.prototype._binContigs = function(){
@@ -505,9 +514,11 @@ Blobplot.prototype._binContigs = function(){
     this.hexed = hexed;
     var hexall = hexbin(all)
 	this.hexall = hexall;
-	maxbincount = maxlen(hexall);
-	this.maxbincount = maxbincount;
-	this.radius.domain([1,maxbincount])
+	maxes = maxlen(hexall);
+	this.maxbincount = maxes[0];
+	this.maxbinspan = maxes[1];
+	this.maxbin = maxes[0];
+	this.radius.domain([1,maxes[0]])
 	this.radius.range([2,3.6*this.binscale])
 }
 
@@ -850,7 +861,7 @@ var treediv = d3.select("#treemap-plot")
     .style("top", this.margin.top + "px");
 }
 
-Blobplot.prototype._addNodes = function (parent,taxon,bin){
+Blobplot.prototype._addNodes = function (parent,rank,taxon,bin){
 	var hexed = this.Hexed(taxon);
 	if (!hexed){
 		return;
@@ -859,7 +870,7 @@ Blobplot.prototype._addNodes = function (parent,taxon,bin){
 	var blobs = this.Blobs();
 	var taxrule = this.Taxrule();
 	var cov = this.Cov();
-	var rank = parent;
+	//var rank = this.ranks[parent];
 		
 	var taxa = {};
 	var children = [];
@@ -870,22 +881,25 @@ Blobplot.prototype._addNodes = function (parent,taxon,bin){
 			if (!taxa[name]){
 				taxa[name] = {}
 				taxa[name].size = 0
+				taxa[name].count = 0
 				taxa[name].c_indices = {}
 			}
 			//arr[3] = contig span
 			taxa[name].size += arr[3];
-			c_index = blobs[arr[2]].taxonomy[taxrule][parent].c;
+			taxa[name].count += 1;
+			/*c_index = blobs[arr[2]].taxonomy[taxrule][rank].c;
 			c_index = c_index > 1 ? 1 : c_index;
 			if (!taxa[name].c_indices[c_index]){
 				taxa[name].c_indices[c_index] = 0
 			}
-			taxa[name].c_indices[c_index]+=arr[3];
+			taxa[name].c_indices[c_index]+=arr[3];*/
 		}
 	});
 	Object.keys(taxa).forEach(function(name){
 		var tmp = {};
     	tmp.name = name;
     	tmp.size = taxa[name].size;
+    	tmp.count = taxa[name].count;
     		/*tmp.children = [];
     		for( var c_index in taxa[name].c_indices ) {
     			if( taxa[name].c_indices.hasOwnProperty( c_index ) ) {
@@ -909,6 +923,7 @@ function combine (arr1,arr2){
        		if (arr2[j].name == arr1[i].name) {
            		shared = true;
            		arr2[j].size += arr1[i].size;
+           		arr2[j].count += arr1[i].count;
        		}
    			
    		}
@@ -930,7 +945,7 @@ Blobplot.prototype.generateTreemap = function(root){
 	var treemap = d3.layout.treemap()
     	.size([this.width, this.height])
     	.sticky(true)
-    	.value(function(d) { return d.size; });
+    	.value(this.treevalue);
 	
 	var tree = {};
 	tree.name = root;
@@ -946,16 +961,18 @@ Blobplot.prototype.generateTreemap = function(root){
     	var tmp = {};
 		tmp.name = taxon;
 		tmp.size = 0;
+		tmp.count = 0;
 		var hexed = blobplot.Hexed(taxon);
 		Object.keys(cells).forEach(function(bin){	
 			if (hexed && hexed[bin]){
 				tmp.size += hexed[bin].span;
+				tmp.count += hexed[bin].length;
 				if (blobplot.ranks[root] && taxon != "nh"){
 					if (!tmp.children){
-						tmp.children = blobplot._addNodes(blobplot.ranks[root],taxon,bin);
+						tmp.children = blobplot._addNodes(root,blobplot.ranks[root],taxon,bin);
 					}
 					else {
-						tmp.children = combine(tmp.children,blobplot._addNodes(blobplot.ranks[root],taxon,bin));
+						tmp.children = combine(tmp.children,blobplot._addNodes(root,blobplot.ranks[root],taxon,bin));
 					}
 				}
 			
@@ -977,9 +994,11 @@ Blobplot.prototype.drawTreemap = function(){
 			.style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
 	}
 
+	var value = this.treevalue;
 	var blobplot = this;
 	var node = d3.select("#treemap-plot").datum(this.tree).selectAll(".node")
-		.data(this.treemap.nodes);
+		.data(this.treemap.value(value).nodes);
+		//.data(this.treemap.value.nodes);
   	node.enter().append("div")
   	node.attr("class", "node")
 		.call(position)
@@ -989,6 +1008,8 @@ Blobplot.prototype.drawTreemap = function(){
     	.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? d.name + ': ' + span : d.name + ': ' + span})// : null ; })
     	.text(function(d) { return d.children ? null : d.name})// : null; });
 	node.exit().remove()
+	
+	
 }
 
 
@@ -1028,11 +1049,13 @@ d3.json("json/blob.BlobDB.smaller.json", function(error, json) {
 	console.timeEnd('filter')*/
 	
 	
-	d3.select('#new-filter-submit').on("click",function(){ blob.createCellFilter(document.getElementById("filter-name-input").value)});
-	d3.select('#apply-filters').on("click",function(){ blob.applyFilters()});
+	d3.select('#new-filter-submit').on("click",function(){ blob.createCellFilter(document.getElementById("filter-name-input").value); blob.selectNone(); });
+	d3.select('#apply-filters').on("click",function(){ blob.selectNone(); blob.applyFilters()});
 	d3.select('#select-all').on("click",function(){ blob.selectAll()});
 	d3.select('#select-none').on("click",function(){ blob.selectNone()});
 	d3.select('#list-contigs').on("click",function(){ console.log(blob.listContigs())});
+	d3.select('#scale-by').selectAll("input").on("change", function(){dispatch.changescale(blob,this.value)});
+
 });
 
 dispatch.on('load.blob',function(blob){
@@ -1072,6 +1095,25 @@ dispatch.on('rankchange.tree',function(blob){
 	}
 });
 
+dispatch.on('changescale.tree',function(blob,value){
+	blob.treevalue = value === "count"
+        ? function(d) { return d.count; }
+        : function(d) { return d.size; };
+	if (Object.keys(blob.cells).length > 0){
+		blob.drawTreemap();
+	}
+});
+
+dispatch.on('changescale.blob',function(blob,value){
+	blob.blobvalue = value === "count"
+        ? function(d) { return d.length; }
+        : function(d) { return d.span; };
+    blob.maxbin = value === "count"
+        ? blob.maxbincount
+        : blob.maxbinspan;
+	blob.plotBlobs();
+});
+
 dispatch.on('toggletaxa.tree',function(blob){
 	if (Object.keys(blob.cells).length > 0){
 		blob.generateTreemap();
@@ -1083,7 +1125,6 @@ dispatch.on('toggletaxa.tree',function(blob){
 });
 
 dispatch.on('resizebins.blob',function(blob,value){
-	console.log(value);
 	blob.selectNone();
 	blob.binscale = value;
 	blob.hexbin.radius(0.04*value)
