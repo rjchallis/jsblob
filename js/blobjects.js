@@ -1,6 +1,6 @@
 // blobjects.js globals and objects for interactive blob plots
 
-var dispatch = d3.dispatch("load", "toggletaxa", "select", "blobselect", "mapselect", "mapzoom", "rankchange", "filter");
+var dispatch = d3.dispatch("load", "toggletaxa", "resizebins", "select", "blobselect", "mapselect", "mapzoom", "rankchange", "filter");
 
 function Blobplot (data,options){
 	this.blobs = data.dict_of_blobs;
@@ -36,12 +36,13 @@ function Blobplot (data,options){
         width:      width,
         height:     height,
         
-        radius:		d3.scale.log()
-	    				.domain([1, 4000])
-	    				.range([2, 15]),
+        binscale:	4,
+	    radius:		d3.scale.log()
+	    				.domain([1, 3313])
+	    				.range([2, 14]),
 	    hexbin:		d3.hexbin()
 	    				.size([10, 10])
-	    				.radius(0.1429),
+	    				.radius(0.16),
 	    x:			d3.scale.linear()
 	    				.domain([0, 10])
 	    				.range([0, width]),
@@ -89,6 +90,7 @@ function Blobplot (data,options){
 
 	this.radius = options.radius;
 	this.hexbin = options.hexbin;
+	this.binscale = options.binscale;
 	
 	this.x = options.x;
 	this.y = options.y;
@@ -123,7 +125,13 @@ Blobplot.prototype.setupMenus = function(){
 
 	blob.showFilters('filters');
 	blob.ranksDropdown('ranks');
-	//blob.showTaxa('taxa');
+	blob.binSizer();
+}
+
+Blobplot.prototype.binSizer = function(){
+	var slider = d3.select('#bin-size-slider');
+	var blobplot = this;
+	slider.on('change',function(){ dispatch.resizebins(blobplot,d3.select(this).property('value'));});
 }
 
 Blobplot.prototype.setupPlot = function(){
@@ -284,6 +292,7 @@ Blobplot.prototype.ColorMap = function(option){
 
 Blobplot.prototype.Hexed = function(taxon){
 	if (!this.hexed){
+		this._limitTaxa();
 		this._binContigs();
 	}
 	if (taxon){
@@ -344,7 +353,7 @@ Blobplot.prototype.plotBlobs = function(target){
 	    .attr("rel", function(d) { return d.id; })
 	    .style("stroke",function(d){return 'rgba(0,0,0,'+(0.1+bins[d.id]/20)+')'})
 	    .classed("hidden",function(d){if (!bins[d.id]) {return true}})
-	    .attr("d", function(d) { return hexbin.hexagon(12.5); })
+	    .attr("d", function(d) { return hexbin.hexagon(radius(blob.maxbincount)); })
 	    .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
 	    .on("mousedown",function(){
 	    	if (d3.select(this).classed("selected")){
@@ -474,6 +483,16 @@ Blobplot.prototype._assignColors = function(option){
 	
 }
 
+function maxlen(obj){
+	var max = 0;
+	Object.keys(obj).forEach(function(bin){
+		if (obj[bin].length > max){
+			max = obj[bin].length;
+		}
+	});
+	return max;
+}
+
 Blobplot.prototype._binContigs = function(){
 	var hexed = {};
 	var all = [];
@@ -484,7 +503,12 @@ Blobplot.prototype._binContigs = function(){
     	all = all.concat(points[taxon]);
 	});
     this.hexed = hexed;
-	this.hexall = hexbin(all)
+    var hexall = hexbin(all)
+	this.hexall = hexall;
+	maxbincount = maxlen(hexall);
+	this.maxbincount = maxbincount;
+	this.radius.domain([1,maxbincount])
+	this.radius.range([2,3.6*this.binscale])
 }
 
 
@@ -743,7 +767,7 @@ Blobplot.prototype.selectCells = function(cells){
 }
 
 
-Blobplot.prototype.simpleSelectAll = function(option){
+Blobplot.prototype.simpleSelectAll = function(){
 	var hexed = this.Hexed('all');
 	var cells = this.cells;
 	Object.keys(hexed).forEach(function(bin){
@@ -753,16 +777,16 @@ Blobplot.prototype.simpleSelectAll = function(option){
 			cells[bin] = 1;
 		}
 	});
-	if (!option){
-		dispatch.toggletaxa(blobplot);
-	}
 	return 1;
 }
 
 
-Blobplot.prototype.selectNone = function(){
+Blobplot.prototype.selectNone = function(option){
 	this.cells = {};
 	d3.selectAll('.selected').each(function(){d3.select(this).classed('selected',false)});
+	if (!option){
+		dispatch.toggletaxa(blobplot);
+	}
 	return 1;
 }
 
@@ -796,7 +820,6 @@ var treediv = d3.select("#treemap-plot")
 }
 
 Blobplot.prototype._addNodes = function (parent,taxon,bin){
-	console.log('here')
 	var hexed = this.Hexed(taxon);
 	if (!hexed){
 		return;
@@ -1017,6 +1040,16 @@ dispatch.on('toggletaxa.tree',function(blob){
 	// clear blob.points
 	blob.generateTreemap();
 	blob.drawTreemap();
+});
+
+dispatch.on('resizebins.blob',function(blob,value){
+	console.log(value);
+	blob.binscale = value;
+	blob.hexbin.radius(0.04*value)
+	blob.hexed = null;
+	blob.colormap = null;
+	blob.taxorder = null;
+	blob.plotBlobs();
 });
 
 
