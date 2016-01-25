@@ -377,6 +377,9 @@ Blobplot.prototype.plotBlobs = function(target){
 				blobplot.dragging = 'off';
 			}
 			else {
+				if (!d3.event.shiftKey) {
+        			blobplot.selectNone(1);
+    			}
 				blobplot.dragging = 'on';
 			}
 	    	blobplot.toggleCell(this);
