@@ -872,6 +872,7 @@ Blobplot.prototype.inverseFilters = function(){
 
 Blobplot.prototype.selectAll = function(){
 	this.selectNone(1);
+	this.selectedcontigs = null;
 	var hexed = this.Hexed();
 	var cells = this.cells;
 	var blobplot = this;
@@ -926,6 +927,7 @@ Blobplot.prototype.selectNone = function(option){
 	this.cells = {};
 	d3.selectAll('.selected').each(function(){d3.select(this).classed('selected',false)});
 	if (!option){
+		this.selectedcontigs = null;
 		dispatch.toggletaxa(this);
 	}
 	return 1;
@@ -1278,7 +1280,7 @@ dispatch.on('toggletaxa.tree',function(blob){
 
 dispatch.on('resizebins.blob',function(blob,value){
 	var contigs = blob.selectedcontigs || blob.selectUnderlyingContigs(blob.cells);
-	blob.selectNone();
+	blob.selectNone(1);
 	blob.binscale = value;
 	blob.hexbin.radius(0.04*value)
 	blob.hexed = null;
