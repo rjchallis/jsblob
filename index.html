@@ -12,6 +12,7 @@
 			<div id="menu">
 				<div id="filter" class="top-level"><div class="top-level-heading">Filters</div>
 					<div id="apply-filters" class="section">apply</div>
+					<div id="include-filters" class="section">include</div>
 					<div id="filters">
 					
 					</div>
@@ -30,10 +31,22 @@
   					</div>
   					<div id="scale-by" class="section">
 						<form>
-  							<label><input type="radio" name="mode" value="count" checked> Count</label>
-  							<label><input type="radio" name="mode" value="span"> Span</label>
+  							<label><input type="radio" name="mode" value="count" checked> count</label>
+  							<label><input type="radio" name="mode" value="span"> span</label>
 						</form>
 					</div>
+					<div id="radius-scale" class="section">
+						scale:
+						<form>
+  							<label><input type="radio" name="scale" value="linear" checked> lin</label>
+  							<label><input type="radio" name="scale" value="sqrt" checked> sqrt</label>
+  							<label><input type="radio" name="scale" value="log"> log</label>
+						</form>
+  					</div>
+  					<div id="hex-size" class="section">
+						hex-size:
+						<input id="hex-size-slider" type="range" name="size" min="0" max="4" value="1"/>
+  					</div>
   					<div id="list-contigs" class="section">list contigs</div>
 					
 				</div>
