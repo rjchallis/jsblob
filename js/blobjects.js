@@ -133,6 +133,8 @@ Blobplot.prototype.setupMenus = function(){
     .style("top", this.margin.top + "px");
 
 	blob.showFilters('filters');
+	blob.coverageDropdown('coverage');
+	blob.taxruleDropdown('taxrule');
 	blob.ranksDropdown('ranks');
 	blob.binSizer();
 }
@@ -403,6 +405,8 @@ Blobplot.prototype.previewBlobs = function(underblob){
 	var prevg = d3.select('#preview');
 	blobplot.hexbin = underblob.hexbin;
 	blobplot.binscale = underblob.binscale;
+	blobplot.cov = underblob.cov;
+	blobplot.taxrule = underblob.taxrule;
 	
 	var hexall = this.Hexed('all');
 	var radius = underblob.radius;
@@ -583,6 +587,41 @@ Blobplot.prototype._binContigs = function(){
 	this.radius.range([2,3.6*this.binscale*this.hexsize])
 }
 
+
+Blobplot.prototype.coverageDropdown = function(target){
+	var div = d3.select('#'+target);
+	div.select('select').remove();
+	var select = div.append('select');
+	var blobplot = this;
+	for( var cov in this.covs ) {
+    	if( this.covs.hasOwnProperty( cov ) ) {
+    		select.append('option')
+    			.attr('value',cov)
+    			.property('selected',function(){return cov === blobplot.cov})
+    			.text(cov);
+		}
+	}
+	select.on('change',function(){ 	blobplot.Cov(this.options[this.selectedIndex].value);
+									blobplot.selectNone();
+									dispatch.rankchange(blobplot);
+	  							})
+}
+
+Blobplot.prototype.taxruleDropdown = function(target){
+	var div = d3.select('#'+target);
+	div.select('select').remove();
+	var select = div.append('select');
+	var blobplot = this;
+    Object.keys(blobplot.taxrules).forEach(function(taxrule) {
+    	select.append('option')
+    		.attr('value',taxrule)
+    		.property('selected',function(){return taxrule === blobplot.taxrule})
+    		.text(taxrule);
+	});
+	select.on('change',function(){ 	blobplot.Taxrule(this.options[this.selectedIndex].value);
+									
+	  							})
+}
 
 Blobplot.prototype.ranksDropdown = function(target){
 	var div = d3.select('#'+target);
@@ -1131,6 +1170,10 @@ Blobplot.prototype.drawTreemap = function(){
      // .style("pointer-events", function(d) { return d.children ? 'auto' : 'none'; })
     	.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? d.name + ': ' + span : d.name + ': ' + span})// : null ; })
     	.text(function(d) { return d.children ? null : d.name})// : null; });
+		.on('click',function(){
+			var current = d3.select(this);
+			current.classed("selected",!current.classed("selected"));
+		});
 	node.exit().remove()
 	
 	
