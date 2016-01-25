@@ -725,6 +725,40 @@ Blobplot.prototype.createCellFilter = function(name){
     this.showFilters('filters');
 }
 
+Blobplot.prototype.selectUnderlyingContigs = function(cells){
+	var hexall = this.hexall;
+	var contigs = [];
+	Object.keys(cells).forEach(function(bin){
+    	if (hexall[bin]){
+    		hexall[bin].forEach(function(arr,i){
+    			contigs.push(arr[2]);
+    		});
+    	}
+    });
+    this.selectedcontigs = contigs;
+    return contigs;
+}
+
+Blobplot.prototype.cellsFromContigs = function(contigs){
+	var cells = {};
+	var newblob = new Blobplot({'dict_of_blobs':this.blobs});
+	var filteredblobs = {};
+	contigs.forEach(function(contig,i){
+		filteredblobs[contig] = newblob.blobs[contig];
+	});
+	newblob.filteredblobs = filteredblobs;
+	
+	newblob.hexbin = this.hexbin;
+	newblob.binscale = this.binscale;
+	
+	var hexall = newblob.Hexed('all');
+	
+	Object.keys(hexall).forEach(function(bin){
+    	cells[bin] = 1;
+    });
+	return cells;
+}
+
 
 
 
@@ -740,6 +774,7 @@ Blobplot.prototype.toggleCell = function(el){
 		this.cells[cell.attr("rel")] = 1;
     }
     this.delay = this.dragging ? 500 : 0;
+    this.selectedcontigs = null;
     var blobplot = this;
     this.redraw = setTimeout(function(){
     		if (Object.keys(blobplot.cells).length > 0){
@@ -1242,6 +1277,7 @@ dispatch.on('toggletaxa.tree',function(blob){
 });
 
 dispatch.on('resizebins.blob',function(blob,value){
+	var contigs = blob.selectedcontigs || blob.selectUnderlyingContigs(blob.cells);
 	blob.selectNone();
 	blob.binscale = value;
 	blob.hexbin.radius(0.04*value)
@@ -1249,6 +1285,8 @@ dispatch.on('resizebins.blob',function(blob,value){
 	blob.colormap = null;
 	blob.taxorder = null;
 	blob.plotBlobs();
+	blob.cells = blob.cellsFromContigs(contigs);
+	blob.selectCells(blob.cells);
 });
 
 dispatch.on('resizehexes.blob',function(blob,value){
