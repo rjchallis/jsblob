@@ -175,6 +175,7 @@ Blobplot.prototype.setupPlot = function(){
     
     var hexgroup = plotarea.append("g");
 	var overgroup = plotarea.append("g").attr("clip-path", "url(#clip)");
+	var previewgroup = plotarea.append("g").attr("id", "preview").attr("clip-path", "url(#clip)");
 
     this.plotarea = plotarea;
 	this.hexgroup = hexgroup;
@@ -389,6 +390,33 @@ Blobplot.prototype.plotBlobs = function(target){
 	    	blobplot.dragging = false;
 	    })
 	overlay.exit().remove();
+}
+
+Blobplot.prototype.previewBlobs = function(underblob){
+
+	var blobplot = this;
+	underblob = underblob || blobplot;
+	
+	var prevg = d3.select('#preview');
+	var hexall = this.Hexed('all');
+	var radius = underblob.radius;
+	var hexbin = underblob.hexbin;
+	var x = underblob.x;
+	var y = underblob.y;
+	
+	
+	var preview = prevg.selectAll(".preview").data(d3.values(hexall))
+	preview.enter().append("path")
+	preview.attr("class", function(d){ return "preview c"+d.id })
+	    .attr("d", function(d) { return hexbin.hexagon(radius(underblob.Maxbin())/underblob.hexsize); })
+	    .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
+	preview.exit().remove();
+}
+
+Blobplot.prototype.endPreview = function(target){
+
+	var prevg = d3.select('#preview');
+	prevg.selectAll(".preview").classed('hidden',true)
 }
 
 Blobplot.prototype._filterContigs = function(){
@@ -742,15 +770,15 @@ Blobplot.prototype.showFilters = function(target){
 	var filters = d3.select('#'+target).selectAll('div.filter-options').data(data);
 	var enter = filters.enter()
 	var container = enter.append('div').attr('class','filter-options section');
+	container.attr('rel',function(d){ return d.name; })
 	container.on('mouseenter',function(){
 					 	var div = d3.select(this);
-						dispatch.filterpreviewstart(blobplot.div.attr('rel'))
+						dispatch.filterpreviewstart(blobplot,div.attr('rel'))
 				 })
 			 .on('mouseleave',function(){
 					 	var div = d3.select(this);
-						dispatch.filterpreviewend(blobplot.div.attr('rel'))
+						dispatch.filterpreviewend(blobplot,div.attr('rel'))
 				 });
-	container.attr('rel',function(d){ return d.name; })
 	container.append('div').attr('class','filter-name');
 	container.append('div').attr('class','filter-count');
 	container.append('input').attr('type','checkbox')
@@ -1225,13 +1253,20 @@ dispatch.on('resizehexes.blob',function(blob,value){
 	blob.selectCells(cells);
 });
 
-
 dispatch.on('filterpreviewstart.blob',function(blob,value){
-	console.log('start '+value);
+	var newblob = new Blobplot({'dict_of_blobs':blob.blobs});
+	var filteredblobs = {};
+	blob.contigFilters[value].contigs.forEach(function(contig,i){
+		filteredblobs[contig] = newblob.blobs[contig];
+	});
+	newblob.filteredblobs = filteredblobs;
+	newblob.previewBlobs();
+	this.tmpblob = newblob;
 });
 
 dispatch.on('filterpreviewend.blob',function(blob,value){
-	console.log('end '+value);
+	delete blob.tmpblob;
+	blob.endPreview();
 });
 
 

@@ -104,6 +104,13 @@ html, body {
   stroke-width: .5px;
 }
 
+.preview {
+  fill: black;
+  stroke: none;
+  opacity: 0.7;
+}
+
+
 .node {
   border: solid 1px white;
   font: 10px sans-serif;
