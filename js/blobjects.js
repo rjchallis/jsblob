@@ -401,6 +401,9 @@ Blobplot.prototype.previewBlobs = function(underblob){
 	underblob = underblob || blobplot;
 	
 	var prevg = d3.select('#preview');
+	blobplot.hexbin = underblob.hexbin;
+	blobplot.binscale = underblob.binscale;
+	
 	var hexall = this.Hexed('all');
 	var radius = underblob.radius;
 	var hexbin = underblob.hexbin;
@@ -1263,7 +1266,7 @@ dispatch.on('filterpreviewstart.blob',function(blob,value){
 		filteredblobs[contig] = newblob.blobs[contig];
 	});
 	newblob.filteredblobs = filteredblobs;
-	newblob.previewBlobs();
+	newblob.previewBlobs(blob);
 	this.tmpblob = newblob;
 });
 
