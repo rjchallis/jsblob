@@ -107,9 +107,11 @@ html, body {
 }
 
 .preview {
-  fill: black;
-  stroke: none;
-  opacity: 0.7;
+  fill: rgba(255,0,0,0.5);
+  stroke: black;
+  stroke-width: .5px;
+   -webkit-background-clip: padding-box; /* for Safari */
+  background-clip: padding-box; /* for IE9+, Firefox 4+, Opera, Chrome */
 }
 
 
