@@ -4,6 +4,7 @@ var dispatch = d3.dispatch("load", "toggletaxa", "resizebins", "changescale", "c
 
 function Blobplot (data,options){
 	this.blobs = data.dict_of_blobs;
+	this.taxindex = data.taxindex;
 	
 	options = options || {};
 	
@@ -12,17 +13,17 @@ function Blobplot (data,options){
 	
 	var default_options = {
         maxgroups:   7,
-        rank:        'k',
-        ranks:       {"k":"p","p":"o","o":"f"},
-        ranknames:   {	"k":"superkingdom",
-						"p":"phylum",
-						"o":"order",
-						"f":"family"
+        rank:        '0',
+        ranks:       {"0":"1","1":"2","2":"3"},
+        ranknames:   {	"0":"superkingdom",
+						"1":"phylum",
+						"2":"order",
+						"3":"family"
 					},
-		taxrules:   {"bestsum":1},
-		taxrule:    "bestsum",
-		covs:       {"cov0":1,"cov1":2,"cov2":3,"cov3":2},
-		cov:        "cov0",
+		taxrules:   ["bestsum"],
+		taxrule:    0,
+		covs:       ["cov0","cov1","cov2","cov3"],
+		cov:        0,
 		zerocov:    0.001,
 		collection: {},
 		palette:    d3.scale.category10(),
@@ -347,7 +348,7 @@ Blobplot.prototype.plotBlobs = function(target){
 	var groups = hexg.selectAll('g').data(data);
 	groups.enter().append('g');
 	var hexagons = groups.attr("clip-path", "url(#clip)")
-	    	.attr("class", function(d){ var css = d.key; if (blobplot.taxa && blobplot.taxa[d.key] && !blobplot.taxa[d.key].visible){ css += ' hidden'} return css;} )
+	    	.attr("class", function(d){ var css = 't'+d.key; if (blobplot.taxa && blobplot.taxa[d.key] && !blobplot.taxa[d.key].visible){ css += ' hidden'} return css;} )
 	  		.selectAll(".hexagon").data(function(d){var tax = d.key;
 	  												var arr = d3.values(d.values);
 	  													arr.forEach(function(value){
@@ -476,7 +477,7 @@ Blobplot.prototype._applyRules = function(){
 		if (!points[taxon]){
     		points[taxon] = [];
     	}
-    	points[taxon].push([blobs[contig].gc*10,Math.log10(blobs[contig].covs[cov] + zerocov),contig,blobs[contig].len]);
+    	points[taxon].push([blobs[contig].gc*10,Math.log10(blobs[contig].cov[cov] + zerocov),contig,blobs[contig].l]);
 	});
 	this.points = points;
 }
@@ -598,7 +599,7 @@ Blobplot.prototype.coverageDropdown = function(target){
     		select.append('option')
     			.attr('value',cov)
     			.property('selected',function(){return cov === blobplot.cov})
-    			.text(cov);
+    			.text(blobplot.covs[cov]);
 		}
 	}
 	select.on('change',function(){ 	blobplot.Cov(this.options[this.selectedIndex].value);
@@ -616,7 +617,7 @@ Blobplot.prototype.taxruleDropdown = function(target){
     	select.append('option')
     		.attr('value',taxrule)
     		.property('selected',function(){return taxrule === blobplot.taxrule})
-    		.text(taxrule);
+    		.text(blobplot.taxrules[taxrule]);
 	});
 	select.on('change',function(){ 	blobplot.Taxrule(this.options[this.selectedIndex].value);
 									
@@ -673,7 +674,7 @@ Blobplot.prototype.showTaxa = function(prevtaxa){
 		.attr('class','tax-color')
 		.style('background-color',function(d){return colormap[d]});
 	taxdivs.append('div')
-		.text(function(d){return d});
+		.text(function(d){return blobplot.taxindex[d]});
 	
 	taxdivs.exit().remove();
 	this.taxa = taxa;
@@ -831,7 +832,7 @@ Blobplot.prototype.toggleCell = function(el){
 
 
 Blobplot.prototype.toggleTaxon = function(name,bool){
-	d3.selectAll('g.'+name).classed('hidden',!bool);
+	d3.selectAll('g.t'+name).classed('hidden',!bool);
 	this.taxa[name].visible = bool;
 }
 
@@ -1168,8 +1169,8 @@ Blobplot.prototype.drawTreemap = function(){
 		.style("background", function(d) { return d.children ? blobplot.colormap[d.name] : blobplot.colormap[d.name]})//: "grey"; })
      // .style("opacity", function(d) { return d.children ? 1 : d.name == 0 ? 0 : 0.5; })
      // .style("pointer-events", function(d) { return d.children ? 'auto' : 'none'; })
-    	.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? d.name + ': ' + span : d.name + ': ' + span})// : null ; })
-    	.text(function(d) { return d.children ? null : d.name})// : null; });
+    	.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? blobplot.taxindex[d.name] + ': ' + span : blobplot.taxindex[d.name] + ': ' + span})// : null ; })
+    	.text(function(d) { return d.children ? null : blobplot.taxindex[d.name]})// : null; });
 		.on('click',function(){
 			var current = d3.select(this);
 			current.classed("selected",!current.classed("selected"));
@@ -1191,8 +1192,7 @@ Blobplot.prototype.drawTreemap = function(){
 
 
 var blob;
-
-d3.json("json/blob.BlobDB.smaller.json", function(error, json) {
+d3.json("json/blob.BlobDB.test.json", function(error, json) {
 	if (error) return console.warn(error);
 	
 	
@@ -1226,6 +1226,7 @@ d3.json("json/blob.BlobDB.smaller.json", function(error, json) {
 	d3.select('#radius-scale').selectAll("input").on("change", function(){dispatch.changerscale(blob,this.value)});
 	d3.select('#hex-size-slider').on('change',function(){ dispatch.resizehexes(blob,this.value);});
 });
+
 
 dispatch.on('load.blob',function(blob){
 	blob.setupPlot();
