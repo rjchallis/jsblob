@@ -783,6 +783,8 @@ Blobplot.prototype.cellsFromContigs = function(contigs){
 	var cells = {};
 	var newblob = new Blobplot({'dict_of_blobs':this.blobs});
 	var filteredblobs = {};
+	newblob.cov = this.cov;
+	newblob.taxrule = this.taxrule;
 	contigs.forEach(function(contig,i){
 		filteredblobs[contig] = newblob.blobs[contig];
 	});
