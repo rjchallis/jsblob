@@ -585,7 +585,7 @@ Blobplot.prototype._binContigs = function(){
 	this.maxbincount = maxes[0];
 	this.maxbinspan = maxes[1];
 	this.radius.domain([1,this.Maxbin()])
-	this.radius.range([2,3.6*this.binscale*this.hexsize])
+	this.radius.range([2,this.width/250*this.binscale*this.hexsize])
 }
 
 
@@ -1204,7 +1204,7 @@ d3.json("json/blob.BlobDB.test.json", function(error, json) {
 		topLevel.classed("open", !topLevel.classed("open"));
 	});
 	
-	blob = new Blobplot(json,{});	
+	blob = new Blobplot(json,{width:900,height:900});	
 	dispatch.load(blob);
 
 	console.time('draw')
@@ -1340,7 +1340,7 @@ dispatch.on('resizebins.blob',function(blob,value){
 dispatch.on('resizehexes.blob',function(blob,value){
 	var cells = clone(blob.cells);
 	blob.hexsize = Math.pow(2,value)/2;
-	blob.radius.range([2,3.6*blob.binscale*blob.hexsize])
+	blob.radius.range([2,blob.width/250*blob.binscale*blob.hexsize])
 	blob.plotBlobs();
 	blob.selectCells(cells);
 });
