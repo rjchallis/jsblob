@@ -24,7 +24,7 @@ function Blobplot (data,options){
 		taxrule:    0,
 		covs:       ["cov0","cov1","cov2","cov3"],
 		cov:        0,
-		zerocov:    0.001,
+		zerocov:    0.0009,
 		collection: {},
 		palette:    d3.scale.category10(),
 		
