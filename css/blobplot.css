@@ -92,17 +92,24 @@ html, body {
   stroke-width: .5px;
 }
 .overlay {
-  fill: white;
+  fill: none;
+  pointer-events: fill;
   stroke: black;
-  opacity: 0.1;
   stroke-width: .5px;
+   -webkit-background-clip: padding-box; /* for Safari */
+  background-clip: padding-box; /* for IE9+, Firefox 4+, Opera, Chrome */
 }
 .overlay.selected {
-  fill: blue;
-  stroke: lightgrey;
-  opacity: 0.3;
+  fill: rgba(0,0,255,0.5);
   stroke-width: .5px;
 }
+
+.preview {
+  fill: black;
+  stroke: none;
+  opacity: 0.7;
+}
+
 
 .node {
   border: solid 1px white;
@@ -111,4 +118,8 @@ html, body {
   overflow: hidden;
   position: absolute;
   text-indent: 2px;
+}
+
+.node.selected {
+  background-color: rgba(0,0,255,0.5) !important;
 }

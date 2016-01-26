@@ -5,12 +5,14 @@
 	<body>
 		<link rel="stylesheet" type="text/css" href="css/blobplot.css">
 		<script src="js/d3.js"></script>
+		<!--script src="js/jquery.min.js"></script-->
 		<script src="js/d3.hexbin.js"></script>
 		<script src="js/blobjects.js"></script>
 		<div id="main">
 			<div id="menu">
 				<div id="filter" class="top-level"><div class="top-level-heading">Filters</div>
 					<div id="apply-filters" class="section">apply</div>
+					<div id="include-filters" class="section">include</div>
 					<div id="filters">
 					
 					</div>
@@ -23,8 +25,34 @@
 				<div id="options" class="top-level"><div class="top-level-heading">Options</div>
 					<div id="select-all" class="section">select all</div>
 					<div id="select-none" class="section">select none</div>
+					<div id="coverage" class="section">lib: </div>
+					<div id="bin-size" class="section">
+						bin size:
+						<input id="bin-size-slider" type="range" name="points" min="1" max="10" value="4"/>
+  					</div>
+  					<div id="scale-by" class="section">
+						<form>
+  							<label><input type="radio" name="mode" value="count" checked> count</label>
+  							<label><input type="radio" name="mode" value="span"> span</label>
+						</form>
+					</div>
+					<div id="radius-scale" class="section">
+						scale:
+						<form>
+  							<label><input type="radio" name="scale" value="linear" checked> lin</label>
+  							<label><input type="radio" name="scale" value="sqrt" checked> sqrt</label>
+  							<label><input type="radio" name="scale" value="log"> log</label>
+						</form>
+  					</div>
+  					<div id="hex-size" class="section">
+						hex-size:
+						<input id="hex-size-slider" type="range" name="size" min="0" max="4" value="1"/>
+  					</div>
+  					<div id="list-contigs" class="section">list contigs</div>
+					
 				</div>
 				<div id="taxa-menu" class="top-level"><div class="top-level-heading">Taxa</div>
+					<div id="taxrule" class="section">taxrule: </div>
 					<div id="ranks" class="section"></div>
 					<div id="taxa"></div>
 				</div>
