@@ -8,12 +8,74 @@
 		<!--script src="js/jquery.min.js"></script-->
 		<script src="js/d3.hexbin.js"></script>
 		<script src="js/blobjects.js"></script>
+		<script>
+		function getVals(){
+  // Get slider values
+  var parent = this.parentNode;
+  var slides = parent.getElementsByTagName("input");
+    var slide1 = parseFloat( slides[0].value );
+    var slide2 = parseFloat( slides[1].value );
+  // Neither slider will clip the other, so make sure we determine which is larger
+  if( slide1 > slide2 ){ var tmp = slide2; slide2 = slide1; slide1 = tmp; }
+  
+  var displayElement = parent.getElementsByClassName("rangeValues")[0];
+      displayElement.innerHTML = slide1 + " to " + slide2;
+}
+
+window.onload = function(){
+  // Initialize Sliders
+  var sliderSections = document.getElementsByClassName("range-slider");
+      for( var x = 0; x < sliderSections.length; x++ ){
+        var sliders = sliderSections[x].getElementsByTagName("input");
+        for( var y = 0; y < sliders.length; y++ ){
+          if( sliders[y].type ==="range" ){
+            sliders[y].oninput = getVals;
+            // Manually trigger event first time to display values
+            sliders[y].oninput();
+          }
+        }
+      }
+}
+</script>
 		<div id="main">
 			<div id="menu">
 				<div id="filter" class="top-level"><div class="top-level-heading">Filters</div>
 					<div id="apply-filters" class="section">apply</div>
 					<div id="include-filters" class="section">include</div>
-					<div id="filters">
+					<div id="gc-range" class="section">
+						<section class="range-slider">
+  						gc [<span class="rangeValues"></span>]
+  							<input value="0" min="0" max="1" step="0.01" type="range">
+  							<input value="1" min="0" max="1" step="0.01" type="range">
+						</section>
+						<form>
+  							<label><input type="radio" name="gc-filter-switch" value="off" checked> off</label>
+  							<label><input type="radio" name="gc-filter-switch" value="inc"> inc</label>
+  							<label><input type="radio" name="gc-filter-switch" value="exc"> exc</label>
+						</form>
+  					</div>
+  					<div id="cov-range" class="section">
+						<section class="range-slider">
+  						log(cov) [<span class="rangeValues"></span>]
+  							<input value="-4" min="-4" max="6" step="0.5" type="range">
+  							<input value="6" min="-4" max="6" step="0.5" type="range">
+						</section>
+						<form>
+  							<label><input type="radio" name="cov-filter-switch" value="off" checked> off</label>
+  							<label><input type="radio" name="cov-filter-switch" value="inc"> inc</label>
+  							<label><input type="radio" name="cov-filter-switch" value="exc"> exc</label>
+						</form>
+  					</div>
+					<div id="min-length" class="section">
+						min length:
+						<input id="min-length-slider" type="range" name="points" min="0" max="2000" value="0" step="100"/>
+						<form>
+  							<label><input type="radio" name="length-filter-switch" value="off" checked> off</label>
+  							<label><input type="radio" name="length-filter-switch" value="inc"> inc</label>
+  							<label><input type="radio" name="length-filter-switch" value="exc"> exc</label>
+						</form>
+  					</div>
+  					<div id="filters">
 					
 					</div>
 					<div id="new-filter" class="section">
