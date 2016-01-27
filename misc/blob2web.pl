@@ -110,7 +110,7 @@ foreach my $rank (sort { $indices{'ranks'}{$a} <=> $indices{'ranks'}{$b} } keys 
 			$hash->{dict_of_blobs}->{$contig}->{taxonomy}->[$indices{'taxrules'}->{$taxonomy}] = \@tax;
 		}
 		$ctr++;
-		last if $ctr == 100000;
+		#last if $ctr == 100000;
 	}
 }
 
