@@ -1251,7 +1251,7 @@ Blobplot.prototype.drawTreemap = function(){
 
 
 var blob;
-d3.json("json/blob.BlobDB.test2.json", function(error, json) {
+d3.json("json/blob.BlobDB.test.json", function(error, json) {
 	if (error) return console.warn(error);
 	
 	
