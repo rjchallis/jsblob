@@ -19,6 +19,7 @@ html, body {
 	position:absolute;
 	left: 0px; 
 	top: 0px;
+	pointer-events: none;
 }
 
 #filter {
@@ -30,7 +31,8 @@ html, body {
 	margin-right: 12px;
 	height:24px;
 	overflow:hidden;
-	background-color:rgba(255,255,255,0.9);      
+	background-color:rgba(255,255,255,0.9);   
+	pointer-events: auto;  
 }
 
 .top-level-heading {
@@ -105,9 +107,11 @@ html, body {
 }
 
 .preview {
-  fill: black;
-  stroke: none;
-  opacity: 0.7;
+  fill: rgba(255,0,0,0.5);
+  stroke: black;
+  stroke-width: .5px;
+   -webkit-background-clip: padding-box; /* for Safari */
+  background-clip: padding-box; /* for IE9+, Firefox 4+, Opera, Chrome */
 }
 
 
