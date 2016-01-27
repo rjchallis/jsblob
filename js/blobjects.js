@@ -5,6 +5,10 @@ var dispatch = d3.dispatch("load", "toggletaxa", "resizebins", "changescale", "c
 function Blobplot (data,options){
 	this.blobs = data.dict_of_blobs;
 	this.taxindex = data.taxindex;
+	this.ranks = data.ranks;
+	this.ranknames = data.ranknames;
+	this.taxrules = data.taxrules;
+	this.covs = data.covs;
 	
 	options = options || {};
 	
@@ -14,15 +18,15 @@ function Blobplot (data,options){
 	var default_options = {
         maxgroups:   7,
         rank:        '0',
-        ranks:       {"0":"1","1":"2","2":"3"},
-        ranknames:   {	"0":"superkingdom",
-						"1":"phylum",
-						"2":"order",
-						"3":"family"
-					},
-		taxrules:   ["bestsum"],
+        //ranks:       {"0":"1","1":"2","2":"3"},
+        //ranknames:   {	"0":"superkingdom",
+		//				"1":"phylum",
+		//				"2":"order",
+		//				"3":"family"
+		//			},
+		//taxrules:   ["bestsum"],
 		taxrule:    0,
-		covs:       ["cov0","cov1","cov2","cov3"],
+		//covs:       ["cov0","cov1","cov2","cov3"],
 		cov:        0,
 		zerocov:    0.0009,
 		collection: {},
@@ -70,14 +74,14 @@ function Blobplot (data,options){
         }
     });
 	
-	this.ranknames = options.ranknames;
-	this.ranks = options.ranks;
+	//this.ranknames = options.ranknames;
+	//this.ranks = options.ranks;
 	this.rank = options.rank;
 	
-	this.taxrules = options.taxrules;
+	//this.taxrules = options.taxrules;
 	this.taxrule = options.taxrule;
 	
-	this.covs = options.covs;
+	//this.covs = options.covs;
 	this.cov = options.cov;
 	this.zerocov = options.zerocov;
 	
@@ -313,7 +317,9 @@ Blobplot.prototype.ColorMap = function(option){
 Blobplot.prototype.Hexed = function(taxon){
 	if (!this.hexed){
 		this._limitTaxa();
+		console.time('bin');
 		this._binContigs();
+		console.timeEnd('bin');
 	}
 	if (taxon){
 		if (taxon == 'all'){
@@ -574,10 +580,12 @@ Blobplot.prototype._binContigs = function(){
 	var all = [];
 	var points = this.Points();
 	var hexbin = this.hexbin;
+	console.time('inbin');
 	Object.keys(points).forEach(function(taxon){
     	hexed[taxon] = hexbin(points[taxon])
     	all = all.concat(points[taxon]);
 	});
+	console.timeEnd('inbin');
     this.hexed = hexed;
     var hexall = hexbin(all)
 	this.hexall = hexall;
@@ -1194,7 +1202,7 @@ Blobplot.prototype.drawTreemap = function(){
 
 
 var blob;
-d3.json("json/blob.BlobDB.test.json", function(error, json) {
+d3.json("json/blob.BlobDB.test2.json", function(error, json) {
 	if (error) return console.warn(error);
 	
 	
