@@ -1057,10 +1057,12 @@ Blobplot.prototype._addNodes = function (parent,rank,taxon,bin){
 				taxa[name].size = 0
 				taxa[name].count = 0
 				taxa[name].c_indices = {}
+				taxa[name].contigs = []
 			}
 			//arr[3] = contig span
 			taxa[name].size += arr[3];
 			taxa[name].count += 1;
+			taxa[name].contigs.push(arr[2]);
 			/*c_index = blobs[arr[2]].taxonomy[taxrule][rank].c;
 			c_index = c_index > 1 ? 1 : c_index;
 			if (!taxa[name].c_indices[c_index]){
@@ -1074,6 +1076,7 @@ Blobplot.prototype._addNodes = function (parent,rank,taxon,bin){
     	tmp.name = name;
     	tmp.size = taxa[name].size;
     	tmp.count = taxa[name].count;
+    	tmp.contigs = taxa[name].contigs;
     		/*tmp.children = [];
     		for( var c_index in taxa[name].c_indices ) {
     			if( taxa[name].c_indices.hasOwnProperty( c_index ) ) {
@@ -1159,6 +1162,49 @@ Blobplot.prototype.generateTreemap = function(root){
 	this.treemap = treemap;
 }
 
+Blobplot.prototype.subTreemap = function(current,contigs){
+
+	if (contigs){
+	var bounds = current.node().getBoundingClientRect();
+	var cells = this.cells;
+	var blobplot = this;
+	var treemap = d3.layout.treemap()
+    	.size([bounds.width, bounds.height])
+    	.sticky(true)
+    	.value(this.treevalue);
+	
+	var tree = {};
+	tree.name = current.attr('rel');
+	tree.children = [];
+	contigs.forEach(function(name){
+		var tmp = {};
+		tmp.name = name;
+		tmp.size = blobplot.blobs[name].l;
+		tmp.count = 1;
+		tree.children.push(tmp);
+	});
+	
+	}
+	
+	function position() {
+		this.style("left", function(d) { return d.x + "px"; })
+			.style("top", function(d) { return d.y + "px"; })
+			.style("width", function(d) { return Math.max(0, d.dx - 1) + "px"; })
+			.style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
+	}
+
+	console.log(tree);
+	var node = current.datum(tree).selectAll(".subnode")
+		.data(contigs ? treemap.nodes : []);
+		//.data(this.treemap.value.nodes);
+  	node.enter().append("div");
+  	node.attr("class", "subnode")
+  		.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? null : span})// : null ; })
+		.call(position);
+	node.exit().remove();
+	
+}
+
 Blobplot.prototype.drawTreemap = function(){
 	function position() {
 		this.transition().duration(500)
@@ -1179,11 +1225,16 @@ Blobplot.prototype.drawTreemap = function(){
 		.style("background", function(d) { return d.children ? blobplot.colormap[d.name] : blobplot.colormap[d.name]})//: "grey"; })
      // .style("opacity", function(d) { return d.children ? 1 : d.name == 0 ? 0 : 0.5; })
      // .style("pointer-events", function(d) { return d.children ? 'auto' : 'none'; })
+    	.attr("rel", function(d) { return d.children ? null : blobplot.taxindex[d.name]})// : null ; })
     	.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? blobplot.taxindex[d.name] + ': ' + span : blobplot.taxindex[d.name] + ': ' + span})// : null ; })
     	.text(function(d) { return d.children ? null : blobplot.taxindex[d.name]})// : null; });
-		.on('click',function(){
-			var current = d3.select(this);
-			current.classed("selected",!current.classed("selected"));
+		.on('mouseenter',function(d){
+			var current = d3.select(this).append('div').attr('class','filler');
+			//current.classed("selected",!current.classed("selected"));
+			blobplot.subTreemap(current,d.contigs);
+		})
+		.on('mouseleave',function(d){
+			var current = d3.select(this).select('.filler').remove();
 		});
 	node.exit().remove()
 	
