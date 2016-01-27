@@ -1045,7 +1045,6 @@ Blobplot.prototype._addNodes = function (parent,rank,taxon,bin){
 	var taxrule = this.Taxrule();
 	var cov = this.Cov();
 	//var rank = this.ranks[parent];
-		
 	var taxa = {};
 	var children = [];
 	contigs.forEach(function (arr,i){
@@ -1144,7 +1143,7 @@ Blobplot.prototype.generateTreemap = function(root){
 			if (hexed && hexed[bin]){
 				tmp.size += hexed[bin].span;
 				tmp.count += hexed[bin].length;
-				if (blobplot.ranks[root] && taxon != "nh"){
+				if (blobplot.ranks[root]){
 					if (!tmp.children){
 						tmp.children = blobplot._addNodes(root,blobplot.ranks[root],taxon,bin);
 					}
@@ -1193,7 +1192,6 @@ Blobplot.prototype.subTreemap = function(current,contigs){
 			.style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
 	}
 
-	console.log(tree);
 	var node = current.datum(tree).selectAll(".subnode")
 		.data(contigs ? treemap.nodes : []);
 		//.data(this.treemap.value.nodes);
