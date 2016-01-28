@@ -45,7 +45,7 @@ function Blobplot (data,options){
         hexsize:	1,
 	    radius:		d3.scale.sqrt()
 	    				.domain([1, 3313])
-	    				.range([2, 14]),
+	    				.range([1, 14]),
 	    rscalename:	'sqrt',
 	    hexbin:		d3.hexbin()
 	    				.size([10, 10])
@@ -198,7 +198,9 @@ Blobplot.prototype.Points = function(){
 		this.displayPoints = null;
 		this.filteredPoints = null;
 		this.taxorder = null;
+		console.time('apply rules');
 		this._applyRules();
+		console.timeEnd('apply rules');
 	}
 	if (this.displayPoints){
 		return this.displayPoints;
@@ -331,7 +333,6 @@ Blobplot.prototype.Hexed = function(taxon){
 }
 
 Blobplot.prototype.plotBlobs = function(target){
-
 	var hexg = this.hexgroup;
 	var overg = this.overgroup;
 	var hexed = this.Hexed();
@@ -350,6 +351,7 @@ Blobplot.prototype.plotBlobs = function(target){
 	});
 	
 	var bins = {};
+	console.time('plot')
 	
 	var groups = hexg.selectAll('g').data(data);
 	groups.enter().append('g');
@@ -371,6 +373,8 @@ Blobplot.prototype.plotBlobs = function(target){
 	    		.attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
 		hexagons.exit().remove();
 	groups.exit().remove();
+	console.timeEnd('plot');
+	console.time('overlay')
 	
 	var overlay = overg.attr("clip-path", "url(#clip)").selectAll(".overlay").data(d3.values(hexall))
 	overlay.enter().append("path")
@@ -402,6 +406,7 @@ Blobplot.prototype.plotBlobs = function(target){
 	    	blobplot.dragging = false;
 	    })
 	overlay.exit().remove();
+	console.timeEnd('overlay');
 }
 
 Blobplot.prototype.previewBlobs = function(underblob){
@@ -437,7 +442,11 @@ Blobplot.prototype.endPreview = function(target){
 }
 
 Blobplot.prototype._filterContigs = function(){
+	console.time('clone');
 	this.filteredblobs = clone(this.blobs);
+	console.timeEnd('clone');
+	console.time('filter');
+	//this.currentfilter = {};
 	for( var filter in this.contigFilters ) {
     	if( this.contigFilters.hasOwnProperty( filter ) ) {
     		if (this.contigFilters[filter].active){
@@ -445,6 +454,18 @@ Blobplot.prototype._filterContigs = function(){
     		}
     	}
     }
+    /*var currentfilter = this.currentfilter;
+    var blobs = this.blobs;
+    filteredblobs = {};
+    for( var contig in this.blobs ) {
+    	if( this.blobs.hasOwnProperty( contig ) ) {
+    		if (!this.currentfilter[contig]){
+    			filteredblobs[contig] = blobs[contig];
+    		}
+    	}
+    }
+    this.filteredblobs = filteredblobs;*/
+    console.timeEnd('filter');
 }
 
 Blobplot.prototype._inverseFilterContigs = function(){
@@ -463,12 +484,16 @@ Blobplot.prototype._inverseFilterContigs = function(){
 
 Blobplot.prototype._applyContigFilter = function(name){
 	var filteredblobs = this.filteredblobs;
+	//var currentfilter = this.currentfilter;
 	this.contigFilters[name].contigs.forEach(function(contig,i){
 		delete filteredblobs[contig];
+		//currentfilter[contig] = 1;
 	});
 }
 
 Blobplot.prototype._applyRules = function(){
+
+	console.time('rules setup');
 	var points = {};
 	var ctr = 0;
 	var blobs = this.Blobs();
@@ -476,16 +501,24 @@ Blobplot.prototype._applyRules = function(){
 	var cov = this.cov;
 	var rank = this.rank;
 	var zerocov = this.zerocov;
-	
+	console.timeEnd('rules setup');
+	console.time('rules loop');
 	// select taxrule, rank and coverage
+	//for (var contig in blobs){
+	//	if (blobs.hasOwnProperty(contig)){
 	Object.keys(blobs).forEach(function(contig){
 		var taxon = blobs[contig].taxonomy[taxrule][rank].t;
 		if (!points[taxon]){
     		points[taxon] = [];
     	}
     	points[taxon].push([blobs[contig].gc*10,Math.log10(blobs[contig].cov[cov] + zerocov),contig,blobs[contig].l]);
+		//points[taxon].push([blobs[contig].gc,blobs[contig].cov[cov],contig,blobs[contig].l]);
+		//}
 	});
+	console.timeEnd('rules loop');
+	console.time('rules store');
 	this.points = points;
+	console.timeEnd('rules store');
 }
 
 Blobplot.prototype._filterTaxa = function(){
@@ -516,7 +549,11 @@ Blobplot.prototype._filterTaxa = function(){
 Blobplot.prototype._limitTaxa = function(){
 	// limit number of unique taxon names to display
 	var points = this.Points();
+	console.time('sort taxa');
+	
 	var sorted = getSortedKeys(points);
+	console.timeEnd('sort taxa');
+	console.time('reduce taxa');
 	var sortedpoints = {};
 	var taxorder = [];
 	var maxgroups = this.maxgroups;
@@ -536,6 +573,8 @@ Blobplot.prototype._limitTaxa = function(){
 	});
 	this.displayPoints = sortedpoints;
 	this.taxorder = taxorder;
+	
+	console.timeEnd('reduce taxa');
 }
 
 Blobplot.prototype._assignColors = function(option){
@@ -593,7 +632,7 @@ Blobplot.prototype._binContigs = function(){
 	this.maxbincount = maxes[0];
 	this.maxbinspan = maxes[1];
 	this.radius.domain([1,this.Maxbin()])
-	this.radius.range([2,this.width/250*this.binscale*this.hexsize])
+	this.radius.range([1,this.width/250*this.binscale*this.hexsize])
 }
 
 
@@ -1251,9 +1290,10 @@ Blobplot.prototype.drawTreemap = function(){
 
 
 var blob;
+console.time('load');
 d3.json("json/blob.BlobDB.test.json", function(error, json) {
 	if (error) return console.warn(error);
-	
+	console.timeEnd('load');
 	
 	
 	d3.selectAll(".top-level-heading").on('click',function(){
@@ -1397,7 +1437,7 @@ dispatch.on('resizebins.blob',function(blob,value){
 dispatch.on('resizehexes.blob',function(blob,value){
 	var cells = clone(blob.cells);
 	blob.hexsize = Math.pow(2,value)/2;
-	blob.radius.range([2,blob.width/250*blob.binscale*blob.hexsize])
+	blob.radius.range([1,blob.width/250*blob.binscale*blob.hexsize])
 	blob.plotBlobs();
 	blob.selectCells(cells);
 });
