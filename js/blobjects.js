@@ -1266,13 +1266,14 @@ Blobplot.prototype.drawTreemap = function(){
 		.data(this.treemap.value(value).nodes);
 		//.data(this.treemap.value.nodes);
   	node.enter().append("div")
+  	node.exit().remove()
   	node.attr("class", "node")
 		.call(position)
 		.style("background", function(d) { return d.children ? blobplot.colormap[d.name] : blobplot.colormap[d.name]})//: "grey"; })
      // .style("opacity", function(d) { return d.children ? 1 : d.name == 0 ? 0 : 0.5; })
      // .style("pointer-events", function(d) { return d.children ? 'auto' : 'none'; })
     	.attr("rel", function(d) { return d.children ? null : blobplot.taxindex[d.name]})// : null ; })
-    	.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? blobplot.taxindex[d.name] + ': ' + span : blobplot.taxindex[d.name] + ': ' + span})// : null ; })
+    	.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? blobplot.taxindex[d.name] + ': ' + span + ' (' + d.count + ' contigs)' : blobplot.taxindex[d.name] + ': ' + span + ' (' + d.count + ' contigs)'})// : null ; })
     	.text(function(d) { return d.children ? null : blobplot.taxindex[d.name]})// : null; });
 		/*.on('mouseenter',function(d){
 			var current = d3.select(this).append('div').attr('class','filler');
@@ -1282,7 +1283,27 @@ Blobplot.prototype.drawTreemap = function(){
 		.on('mouseleave',function(d){
 			var current = d3.select(this).select('.filler').remove();
 		});*/
-	node.exit().remove()
+		.on('click',function(d){
+			var scores = [];
+			d.contigs.forEach(function(name,i){
+				scores.push(blobplot.filteredblobs[name].taxonomy[blobplot.taxrule][blobplot.rank].s);
+				scores[i] = scores[i] > 20000 ? 20000 : scores[i];
+			});
+			var values = scores.sort(d3.ascending);
+			var min = d3.min(values);
+			var low = d3.quantile(values, 0.05);
+			var median = d3.quantile(values, 0.5);
+			var upp = d3.quantile(values, 0.95);
+			var max = d3.max(values);
+			console.log('scores:');
+			console.log('  min: '+min);
+			console.log('  5%: '+low);
+			console.log('  median: '+median);
+			console.log('  95%: '+upp);
+			console.log('  max: '+max);
+			console.log('');
+			
+		});
 	
 	
 }
