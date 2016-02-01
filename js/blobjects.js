@@ -45,7 +45,7 @@ function Blobplot (data,options){
         hexsize:	1,
 	    radius:		d3.scale.sqrt()
 	    				.domain([1, 3313])
-	    				.range([1, 14]),
+	    				.range([1.5, 14]),
 	    rscalename:	'sqrt',
 	    hexbin:		d3.hexbin()
 	    				.size([10, 10])
@@ -632,7 +632,7 @@ Blobplot.prototype._binContigs = function(){
 	this.maxbincount = maxes[0];
 	this.maxbinspan = maxes[1];
 	this.radius.domain([1,this.Maxbin()])
-	this.radius.range([1,this.width/250*this.binscale*this.hexsize])
+	this.radius.range([1.5,this.width/250*this.binscale*this.hexsize])
 }
 
 
@@ -872,6 +872,7 @@ Blobplot.prototype.toggleCell = function(el){
 			}
 			else {
 				d3.select("#treemap-plot").selectAll('.node').transition().duration(500).style('opacity',0).remove();
+				d3.select("#treemap-info").text('');
 			}
     	},blobplot.delay);
     
@@ -1066,7 +1067,7 @@ function getReadableSeqSizeString(seqSizeInBases,fixed) {
 };
 
 Blobplot.prototype.setupTreemap = function(){
-var treediv = d3.select("#treemap-plot")
+var treediv = d3.select("#treemap")
     .style("position", "absolute")
     .style("width", (this.width + this.margin.left + this.margin.right) + "px")
     .style("height", (this.height + this.margin.top + this.margin.bottom) + "px")
@@ -1165,6 +1166,8 @@ Blobplot.prototype.generateTreemap = function(root){
 	var tree = {};
 	tree.name = root;
 	tree.children = [];
+	tree.size = 0;
+	tree.count = 0;
 	// TODO: replace hack
 	var active = [];
 	Object.keys(this.taxa).forEach(function(taxon){
@@ -1193,7 +1196,11 @@ Blobplot.prototype.generateTreemap = function(root){
 			
 			}
 		});
-		tree.children.push(tmp);
+		if (tmp.size > 0){
+			tree.children.push(tmp);
+			tree.count += tmp.count;
+			tree.size += tmp.size;
+		}
 	});
 	
 	this.tree = tree;
@@ -1251,6 +1258,8 @@ Blobplot.prototype.drawTreemap = function(){
 			.style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
 	}
 
+	d3.select("#treemap-info").text(this.tree.count+' contigs selected: '+getReadableSeqSizeString(this.tree.size));
+	
 	var value = this.treevalue;
 	var blobplot = this;
 	var node = d3.select("#treemap-plot").datum(this.tree).selectAll(".node")
@@ -1265,14 +1274,14 @@ Blobplot.prototype.drawTreemap = function(){
     	.attr("rel", function(d) { return d.children ? null : blobplot.taxindex[d.name]})// : null ; })
     	.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? blobplot.taxindex[d.name] + ': ' + span : blobplot.taxindex[d.name] + ': ' + span})// : null ; })
     	.text(function(d) { return d.children ? null : blobplot.taxindex[d.name]})// : null; });
-		.on('mouseenter',function(d){
+		/*.on('mouseenter',function(d){
 			var current = d3.select(this).append('div').attr('class','filler');
 			//current.classed("selected",!current.classed("selected"));
 			blobplot.subTreemap(current,d.contigs);
 		})
 		.on('mouseleave',function(d){
 			var current = d3.select(this).select('.filler').remove();
-		});
+		});*/
 	node.exit().remove()
 	
 	
@@ -1291,7 +1300,7 @@ Blobplot.prototype.drawTreemap = function(){
 
 var blob;
 console.time('load');
-d3.json("json/blob.BlobDB.test.json", function(error, json) {
+d3.json("json/blob.BlobDB.test2.json", function(error, json) {
 	if (error) return console.warn(error);
 	console.timeEnd('load');
 	
@@ -1361,6 +1370,7 @@ dispatch.on('rankchange.tree',function(blob){
 	}
 	else {
 		d3.select("#treemap-plot").selectAll('.node').remove();
+		d3.select("#treemap-info").text('');
 	}
 });
 
@@ -1418,6 +1428,7 @@ dispatch.on('toggletaxa.tree',function(blob){
 	}
 	else {
 		d3.select("#treemap-plot").selectAll('.node').transition().duration(500).style('opacity',0).remove();
+		d3.select("#treemap-info").text('');
 	}
 });
 
@@ -1437,7 +1448,7 @@ dispatch.on('resizebins.blob',function(blob,value){
 dispatch.on('resizehexes.blob',function(blob,value){
 	var cells = clone(blob.cells);
 	blob.hexsize = Math.pow(2,value)/2;
-	blob.radius.range([1,blob.width/250*blob.binscale*blob.hexsize])
+	blob.radius.range([1.5,blob.width/250*blob.binscale*blob.hexsize])
 	blob.plotBlobs();
 	blob.selectCells(cells);
 });

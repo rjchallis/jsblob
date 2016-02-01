@@ -25,6 +25,12 @@ html, body {
 #filter {
 }
 
+#treemap-info {
+	position:absolute;
+	height:24px;
+	top:-24px;
+}
+
 .top-level {
 	float:left;
 	width: 200px;
