@@ -1385,13 +1385,16 @@ dispatch.on('changescale.tree',function(blob,value){
 
 dispatch.on('changescale.blob',function(blob,value){
 	var cells = clone(blob.cells);
-	blob.blobvalue = value === "count"
-        ? function(d) { return d.length; }
-        : function(d) { return d.span; };
-    blob.Maxbin = value === "count"
-        ? function (){ return blob.maxbincount }
-        : function (){ return blob.maxbinspan; }
-	blob.radius.domain([1,blob.Maxbin()])
+	if (value === "count"){
+		blob.blobvalue = function(d) { return d.length; };
+		blob.Maxbin = function (){ return blob.maxbincount };
+		blob.radius.domain([1,blob.Maxbin()]);
+	}
+	else {
+		blob.blobvalue = function(d) { return d.span; };
+   		blob.Maxbin = function (){ return blob.maxbinspan; };
+		blob.radius.domain([200,blob.Maxbin()])
+	}
 	blob.plotBlobs();
 	blob.selectCells(cells);
 });
