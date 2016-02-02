@@ -770,9 +770,11 @@ Blobplot.prototype.createContigFilter = function(name,values){
     			}
     		}
     		if (filter.name == 's' || filter.name == 'c'){
-    			var value = this.blobs[contig].taxonomy[this.rank][filter.name];
-    			if (satisfies(filter.relationship,filter.value,value)){
-    				filter.contigs.push(contig);
+    			if (this.blobs[contig].taxonomy[this.taxrule][this.rank].hasOwnProperty(filter.name)){
+    				var value = this.blobs[contig].taxonomy[this.taxrule][this.rank][filter.name];
+    				if (satisfies(filter.relationship,filter.value,value)){
+    					filter.contigs.push(contig);
+    				}
     			}
     		}
     	}
