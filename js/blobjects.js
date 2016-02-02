@@ -45,7 +45,7 @@ function Blobplot (data,options){
         hexsize:	1,
 	    radius:		d3.scale.sqrt()
 	    				.domain([1, 3313])
-	    				.range([2, 14]),
+	    				.range([1.5, 14]),
 	    rscalename:	'sqrt',
 	    hexbin:		d3.hexbin()
 	    				.size([10, 10])
@@ -198,7 +198,9 @@ Blobplot.prototype.Points = function(){
 		this.displayPoints = null;
 		this.filteredPoints = null;
 		this.taxorder = null;
+		//console.time('apply rules');
 		this._applyRules();
+		//console.timeEnd('apply rules');
 	}
 	if (this.displayPoints){
 		return this.displayPoints;
@@ -302,7 +304,7 @@ function removeItems(arr,items) {
 
 Blobplot.prototype.Blobs = function(){
 	if (!this.filteredblobs){
-		blob._filterContigs();
+		this.filteredblobs = this.blobs;
 	}
 	return this.filteredblobs;
 }
@@ -317,9 +319,9 @@ Blobplot.prototype.ColorMap = function(option){
 Blobplot.prototype.Hexed = function(taxon){
 	if (!this.hexed){
 		this._limitTaxa();
-		console.time('bin');
+		//console.time('bin');
 		this._binContigs();
-		console.timeEnd('bin');
+		//console.timeEnd('bin');
 	}
 	if (taxon){
 		if (taxon == 'all'){
@@ -331,7 +333,6 @@ Blobplot.prototype.Hexed = function(taxon){
 }
 
 Blobplot.prototype.plotBlobs = function(target){
-
 	var hexg = this.hexgroup;
 	var overg = this.overgroup;
 	var hexed = this.Hexed();
@@ -350,6 +351,7 @@ Blobplot.prototype.plotBlobs = function(target){
 	});
 	
 	var bins = {};
+	//console.time('plot')
 	
 	var groups = hexg.selectAll('g').data(data);
 	groups.enter().append('g');
@@ -371,6 +373,8 @@ Blobplot.prototype.plotBlobs = function(target){
 	    		.attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; })
 		hexagons.exit().remove();
 	groups.exit().remove();
+	//console.timeEnd('plot');
+	//console.time('overlay')
 	
 	var overlay = overg.attr("clip-path", "url(#clip)").selectAll(".overlay").data(d3.values(hexall))
 	overlay.enter().append("path")
@@ -402,6 +406,7 @@ Blobplot.prototype.plotBlobs = function(target){
 	    	blobplot.dragging = false;
 	    })
 	overlay.exit().remove();
+	//console.timeEnd('overlay');
 }
 
 Blobplot.prototype.previewBlobs = function(underblob){
@@ -436,39 +441,40 @@ Blobplot.prototype.endPreview = function(target){
 	prevg.selectAll(".preview").classed('hidden',true)
 }
 
-Blobplot.prototype._filterContigs = function(){
-	this.filteredblobs = clone(this.blobs);
-	for( var filter in this.contigFilters ) {
-    	if( this.contigFilters.hasOwnProperty( filter ) ) {
-    		if (this.contigFilters[filter].active){
-    			this._applyContigFilter(filter);
-    		}
-    	}
-    }
+
+
+Blobplot.prototype._includeContigs = function(include){
+	var blob = this;
+	include.forEach(function(filter){
+		blob.contigFilters[filter].contigs.forEach(function(contig,i){
+			blob.filteredblobs[contig] = blob.blobs[contig];
+		});
+	});
 }
 
-Blobplot.prototype._inverseFilterContigs = function(){
-	filteredblobs = {};
-	var blobs = clone(this.blobs);
-	for( var filter in this.contigFilters ) {
-    	if( this.contigFilters.hasOwnProperty( filter ) ) {
-    		this.contigFilters[filter].contigs.forEach(function(contig,i){
-				filteredblobs[contig] = blobs[contig];
-			});
-    	}
-    }
-    this.filteredblobs = filteredblobs;
+
+Blobplot.prototype._excludeContigs = function(include){
+	var blob = this;
+	include.forEach(function(filter){
+		blob.contigFilters[filter].contigs.forEach(function(contig,i){
+			delete blob.filteredblobs[contig];
+		});
+	});
 }
 
 
 Blobplot.prototype._applyContigFilter = function(name){
 	var filteredblobs = this.filteredblobs;
+	//var currentfilter = this.currentfilter;
 	this.contigFilters[name].contigs.forEach(function(contig,i){
 		delete filteredblobs[contig];
+		//currentfilter[contig] = 1;
 	});
 }
 
 Blobplot.prototype._applyRules = function(){
+
+	//console.time('rules setup');
 	var points = {};
 	var ctr = 0;
 	var blobs = this.Blobs();
@@ -476,16 +482,24 @@ Blobplot.prototype._applyRules = function(){
 	var cov = this.cov;
 	var rank = this.rank;
 	var zerocov = this.zerocov;
-	
+	//console.timeEnd('rules setup');
+	//console.time('rules loop');
 	// select taxrule, rank and coverage
+	//for (var contig in blobs){
+	//	if (blobs.hasOwnProperty(contig)){
 	Object.keys(blobs).forEach(function(contig){
 		var taxon = blobs[contig].taxonomy[taxrule][rank].t;
 		if (!points[taxon]){
     		points[taxon] = [];
     	}
     	points[taxon].push([blobs[contig].gc*10,Math.log10(blobs[contig].cov[cov] + zerocov),contig,blobs[contig].l]);
+		//points[taxon].push([blobs[contig].gc,blobs[contig].cov[cov],contig,blobs[contig].l]);
+		//}
 	});
+	//console.timeEnd('rules loop');
+	//console.time('rules store');
 	this.points = points;
+	//console.timeEnd('rules store');
 }
 
 Blobplot.prototype._filterTaxa = function(){
@@ -516,7 +530,11 @@ Blobplot.prototype._filterTaxa = function(){
 Blobplot.prototype._limitTaxa = function(){
 	// limit number of unique taxon names to display
 	var points = this.Points();
+	//console.time('sort taxa');
+	
 	var sorted = getSortedKeys(points);
+	//console.timeEnd('sort taxa');
+	//console.time('reduce taxa');
 	var sortedpoints = {};
 	var taxorder = [];
 	var maxgroups = this.maxgroups;
@@ -536,6 +554,8 @@ Blobplot.prototype._limitTaxa = function(){
 	});
 	this.displayPoints = sortedpoints;
 	this.taxorder = taxorder;
+	
+	//console.timeEnd('reduce taxa');
 }
 
 Blobplot.prototype._assignColors = function(option){
@@ -580,12 +600,12 @@ Blobplot.prototype._binContigs = function(){
 	var all = [];
 	var points = this.Points();
 	var hexbin = this.hexbin;
-	console.time('inbin');
+	//console.time('inbin');
 	Object.keys(points).forEach(function(taxon){
     	hexed[taxon] = hexbin(points[taxon])
     	all = all.concat(points[taxon]);
 	});
-	console.timeEnd('inbin');
+	//console.timeEnd('inbin');
     this.hexed = hexed;
     var hexall = hexbin(all)
 	this.hexall = hexall;
@@ -593,7 +613,7 @@ Blobplot.prototype._binContigs = function(){
 	this.maxbincount = maxes[0];
 	this.maxbinspan = maxes[1];
 	this.radius.domain([1,this.Maxbin()])
-	this.radius.range([2,this.width/250*this.binscale*this.hexsize])
+	this.radius.range([1.5,this.width/250*this.binscale*this.hexsize])
 }
 
 
@@ -718,23 +738,48 @@ function satisfies (relationship,bound,value){
 }
 
 
-Blobplot.prototype.createContigFilter = function(obj){
+Blobplot.prototype.createContigFilter = function(name,values,status){
 	/* {name:"display_name",
 	    property:"gc,cov,c_index,len",
 	    relationship:"lt, gt, (be)tw(een), o(ut)s(ide)",
 	    value:int or array of ints
 	   } */
-	var filter = obj;
+	   var rel = status == 'inc' ? 'os' : 'tw';
+	   var parts = name.split('-');
+	var filter = {name:parts[0],
+		relationship:rel,
+		type:'slider',
+	    value:values
+	   };
 	filter.contigs = [];
 	for( var contig in this.blobs ) {
     	if( this.blobs.hasOwnProperty( contig ) ) {
-    		var value = this.blobs[contig][obj.property];
-    		if (satisfies(obj.relationship,obj.value,value)){
-    			filter.contigs.push(contig);
+    		if (filter.name == 'l' || filter.name == 'c' || filter.name == 's'){
+    			filter.relationship = status == 'inc' ? 'lt' : 'gt';
+    		}
+    		if (filter.name == 'gc' || filter.name == 'l'){
+    			var value = this.blobs[contig][filter.name];
+    			if (satisfies(filter.relationship,filter.value,value)){
+    				filter.contigs.push(contig);
+    			}
+    		}
+    		if (filter.name == 'cov'){
+    			var value = Math.log10(this.blobs[contig].cov[this.cov]+this.zerocov);
+    			if (satisfies(filter.relationship,filter.value,value)){
+    				filter.contigs.push(contig);
+    			}
+    		}
+    		if (filter.name == 's' || filter.name == 'c'){
+    			if (this.blobs[contig].taxonomy[this.taxrule][this.rank].hasOwnProperty(filter.name)){
+    				var value = this.blobs[contig].taxonomy[this.taxrule][this.rank][filter.name];
+    				if (satisfies(filter.relationship,filter.value,value)){
+    					filter.contigs.push(contig);
+    				}
+    			}
     		}
     	}
     }
-    this.contigFilters[obj.name] = filter;
+    this.contigFilters[name] = filter;
 	
 }
 
@@ -833,6 +878,7 @@ Blobplot.prototype.toggleCell = function(el){
 			}
 			else {
 				d3.select("#treemap-plot").selectAll('.node').transition().duration(500).style('opacity',0).remove();
+				d3.select("#treemap-info").text('');
 			}
     	},blobplot.delay);
     
@@ -854,14 +900,17 @@ Blobplot.prototype.showFilters = function(target){
 	var data = []
 	for( var filter in this.contigFilters ) {
     	if( this.contigFilters.hasOwnProperty( filter ) ) {
-    		data.push(clone(this.contigFilters[filter]))
+    		if (!this.contigFilters[filter].hasOwnProperty( 'type' ) ){
+    			data.push(clone(this.contigFilters[filter]))
+    		}
 		}
 	}
 	var blobplot = this;
-	var filters = d3.select('#'+target).selectAll('div.filter-options').data(data);
+	var filters = d3.select('#'+target).selectAll('div.filter-options.cell').data(data);
 	var enter = filters.enter()
-	var container = enter.append('div').attr('class','filter-options section');
-	container.attr('rel',function(d){ return d.name; })
+	var container = enter.append('div').attr('class','filter-options cell section');
+	container.attr('id',function(d){ return d.name; })
+			 .attr('rel',function(d){ return d.name; })
 	container.on('mouseenter',function(){
 					 	var div = d3.select(this);
 						dispatch.filterpreviewstart(blobplot,div.attr('rel'))
@@ -872,13 +921,19 @@ Blobplot.prototype.showFilters = function(target){
 				 });
 	container.append('div').attr('class','filter-name');
 	container.append('div').attr('class','filter-count');
-	container.append('input').attr('type','checkbox')
-							 .attr('class','filter-toggle')
-							 .attr('rel',function(d){ return d.name; })
-							 .on('click',function(){
-							 	var checkbox = d3.select(this);
-								blobplot.toggleFilter(checkbox.attr('rel'))
-							 });
+	var form = container.append('form')
+	var values = ['off','inc','exc'];
+	values.forEach(function(value){
+		var label = form.append('label');
+		label.text(' '+value);
+		label.insert('input')
+			 .attr('type','radio')
+			 .attr('name','filter-switch')
+			 .property('value',value)
+			 .property('checked',function(){if (value == 'off') return true;});
+			 
+	});
+	
 	
 	filters.select('.filter-name').text(function(d){return d.name })
 	filters.select('.filter-count').text(function(d){return d.contigs.length })
@@ -887,36 +942,89 @@ Blobplot.prototype.showFilters = function(target){
 }
 
 Blobplot.prototype.applyFilters = function(){
-	console.time('draw')
-	console.time('filter')
+	//console.time('draw')
+	//console.time('filter')
 	var taxa = clone(this.taxa);
 	this.points = null;
 	this.hexed = null;
 	this.colormap = null;
 	this.taxorder = null;
-	this._filterContigs();
-	console.timeEnd('filter')
+	var blobplot = this;
+	var slideinc = [];
+	var slideexc = [];
+	var include = [];
+	var exclude = [];
+	// which filters to apply?
+	d3.selectAll('.filter-options.cell').each(function(){
+		var el = d3.select(this);
+		var id = el.attr('id');
+		var status = el.select('form input:checked').node().value;
+		if (status == 'inc'){
+    		blobplot.contigFilters[id].active = 'inc';
+    		include.push(id);
+    	}
+    	else if (status == 'exc'){
+    		blobplot.contigFilters[id].active = 'exc';
+    		exclude.push(id);
+    	}
+    });
+	if (include[0]){
+		this.filteredblobs = {}
+		this._includeContigs(include)
+	}
+	
+	// make a single list of contigs based on intersection of sliders
+	// check that include filters are on this list
+	// remove exclude filters from this list
+	d3.selectAll('.filter-options.slider').each(function(){
+		var el = d3.select(this);
+		var id = el.attr('id');
+		var status = el.select('form input:checked').node().value;
+		if (status != 'off'){
+			var slides = el.selectAll(".range");
+			if (!slides.empty()){
+				var vals = [];
+				slides.each(function(){
+					vals.push(this.value);
+				})
+				vals = vals.sort();
+				if (!include[0]){
+					blobplot.filteredblobs = {};
+					status = status == 'inc' ? 'exc' : 'inc';
+					blobplot.createContigFilter(id,vals,status);
+    				include.push(id);
+					blobplot._includeContigs(include)
+					blobplot.contigFilters[id].active = status;
+				}
+				else {
+					blobplot.createContigFilter(id,vals,status);
+					blobplot.contigFilters[id].active = status;
+    				exclude.push(id);
+    			}
+    		}
+    	}
+	});
+	
+	if (!include[0]){
+		if (exclude[0]) {
+			this.filteredblobs = clone(this.blobs);
+		}
+		else {
+			this.filteredblobs = this.blobs;
+		}
+	}
+	if (exclude[0]){
+		this._excludeContigs(exclude);
+	}
+	//this._filterContigs();
+	//console.timeEnd('filter')
 	this.plotBlobs();
-	console.timeEnd('draw');
+	//console.timeEnd('draw');
 	this.showTaxa(taxa);
-	console.timeEnd('draw');
+	//console.timeEnd('draw');
 }
 
-Blobplot.prototype.inverseFilters = function(){
-	console.time('draw')
-	console.time('filter')
-	var taxa = clone(this.taxa);
-	this.points = null;
-	this.hexed = null;
-	this.colormap = null;
-	this.taxorder = null;
-	this._inverseFilterContigs();
-	console.timeEnd('filter')
-	this.plotBlobs();
-	console.timeEnd('draw');
-	this.showTaxa(taxa);
-	console.timeEnd('draw');
-}
+
 
 
 
@@ -1027,7 +1135,7 @@ function getReadableSeqSizeString(seqSizeInBases,fixed) {
 };
 
 Blobplot.prototype.setupTreemap = function(){
-var treediv = d3.select("#treemap-plot")
+var treediv = d3.select("#treemap")
     .style("position", "absolute")
     .style("width", (this.width + this.margin.left + this.margin.right) + "px")
     .style("height", (this.height + this.margin.top + this.margin.bottom) + "px")
@@ -1045,7 +1153,6 @@ Blobplot.prototype._addNodes = function (parent,rank,taxon,bin){
 	var taxrule = this.Taxrule();
 	var cov = this.Cov();
 	//var rank = this.ranks[parent];
-		
 	var taxa = {};
 	var children = [];
 	contigs.forEach(function (arr,i){
@@ -1057,10 +1164,12 @@ Blobplot.prototype._addNodes = function (parent,rank,taxon,bin){
 				taxa[name].size = 0
 				taxa[name].count = 0
 				taxa[name].c_indices = {}
+				taxa[name].contigs = []
 			}
 			//arr[3] = contig span
 			taxa[name].size += arr[3];
 			taxa[name].count += 1;
+			taxa[name].contigs.push(arr[2]);
 			/*c_index = blobs[arr[2]].taxonomy[taxrule][rank].c;
 			c_index = c_index > 1 ? 1 : c_index;
 			if (!taxa[name].c_indices[c_index]){
@@ -1074,6 +1183,7 @@ Blobplot.prototype._addNodes = function (parent,rank,taxon,bin){
     	tmp.name = name;
     	tmp.size = taxa[name].size;
     	tmp.count = taxa[name].count;
+    	tmp.contigs = taxa[name].contigs;
     		/*tmp.children = [];
     		for( var c_index in taxa[name].c_indices ) {
     			if( taxa[name].c_indices.hasOwnProperty( c_index ) ) {
@@ -1124,6 +1234,8 @@ Blobplot.prototype.generateTreemap = function(root){
 	var tree = {};
 	tree.name = root;
 	tree.children = [];
+	tree.size = 0;
+	tree.count = 0;
 	// TODO: replace hack
 	var active = [];
 	Object.keys(this.taxa).forEach(function(taxon){
@@ -1141,7 +1253,7 @@ Blobplot.prototype.generateTreemap = function(root){
 			if (hexed && hexed[bin]){
 				tmp.size += hexed[bin].span;
 				tmp.count += hexed[bin].length;
-				if (blobplot.ranks[root] && taxon != "nh"){
+				if (blobplot.ranks[root]){
 					if (!tmp.children){
 						tmp.children = blobplot._addNodes(root,blobplot.ranks[root],taxon,bin);
 					}
@@ -1152,11 +1264,57 @@ Blobplot.prototype.generateTreemap = function(root){
 			
 			}
 		});
-		tree.children.push(tmp);
+		if (tmp.size > 0){
+			tree.children.push(tmp);
+			tree.count += tmp.count;
+			tree.size += tmp.size;
+		}
 	});
 	
 	this.tree = tree;
 	this.treemap = treemap;
+}
+
+Blobplot.prototype.subTreemap = function(current,contigs){
+
+	if (contigs){
+	var bounds = current.node().getBoundingClientRect();
+	var cells = this.cells;
+	var blobplot = this;
+	var treemap = d3.layout.treemap()
+    	.size([bounds.width, bounds.height])
+    	.sticky(true)
+    	.value(this.treevalue);
+	
+	var tree = {};
+	tree.name = current.attr('rel');
+	tree.children = [];
+	contigs.forEach(function(name){
+		var tmp = {};
+		tmp.name = name;
+		tmp.size = blobplot.blobs[name].l;
+		tmp.count = 1;
+		tree.children.push(tmp);
+	});
+	
+	}
+	
+	function position() {
+		this.style("left", function(d) { return d.x + "px"; })
+			.style("top", function(d) { return d.y + "px"; })
+			.style("width", function(d) { return Math.max(0, d.dx - 1) + "px"; })
+			.style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
+	}
+
+	var node = current.datum(tree).selectAll(".subnode")
+		.data(contigs ? treemap.nodes : []);
+		//.data(this.treemap.value.nodes);
+  	node.enter().append("div");
+  	node.attr("class", "subnode")
+  		.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? null : span})// : null ; })
+		.call(position);
+	node.exit().remove();
+	
 }
 
 Blobplot.prototype.drawTreemap = function(){
@@ -1168,24 +1326,52 @@ Blobplot.prototype.drawTreemap = function(){
 			.style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
 	}
 
+	d3.select("#treemap-info").text(this.tree.count+' contigs selected: '+getReadableSeqSizeString(this.tree.size));
+	
 	var value = this.treevalue;
 	var blobplot = this;
 	var node = d3.select("#treemap-plot").datum(this.tree).selectAll(".node")
 		.data(this.treemap.value(value).nodes);
 		//.data(this.treemap.value.nodes);
   	node.enter().append("div")
+  	node.exit().remove()
   	node.attr("class", "node")
 		.call(position)
 		.style("background", function(d) { return d.children ? blobplot.colormap[d.name] : blobplot.colormap[d.name]})//: "grey"; })
      // .style("opacity", function(d) { return d.children ? 1 : d.name == 0 ? 0 : 0.5; })
      // .style("pointer-events", function(d) { return d.children ? 'auto' : 'none'; })
-    	.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? blobplot.taxindex[d.name] + ': ' + span : blobplot.taxindex[d.name] + ': ' + span})// : null ; })
+    	.attr("rel", function(d) { return d.children ? null : blobplot.taxindex[d.name]})// : null ; })
+    	.attr("title", function(d) { var span = getReadableSeqSizeString(d.size); return d.children ? blobplot.taxindex[d.name] + ': ' + span + ' (' + d.count + ' contigs)' : blobplot.taxindex[d.name] + ': ' + span + ' (' + d.count + ' contigs)'})// : null ; })
     	.text(function(d) { return d.children ? null : blobplot.taxindex[d.name]})// : null; });
-		.on('click',function(){
-			var current = d3.select(this);
-			current.classed("selected",!current.classed("selected"));
+		/*.on('mouseenter',function(d){
+			var current = d3.select(this).append('div').attr('class','filler');
+			//current.classed("selected",!current.classed("selected"));
+			blobplot.subTreemap(current,d.contigs);
+		})
+		.on('mouseleave',function(d){
+			var current = d3.select(this).select('.filler').remove();
+		});*/
+		.on('click',function(d){
+			var scores = [];
+			d.contigs.forEach(function(name,i){
+				scores.push(blobplot.filteredblobs[name].taxonomy[blobplot.taxrule][blobplot.rank].s);
+				scores[i] = scores[i] > 20000 ? 20000 : scores[i];
+			});
+			var values = scores.sort(d3.ascending);
+			var min = d3.min(values);
+			var low = d3.quantile(values, 0.05);
+			var median = d3.quantile(values, 0.5);
+			var upp = d3.quantile(values, 0.95);
+			var max = d3.max(values);
+			console.log('scores:');
+			console.log('  min: '+min);
+			console.log('  5%: '+low);
+			console.log('  median: '+median);
+			console.log('  95%: '+upp);
+			console.log('  max: '+max);
+			console.log('');
+			
 		});
-	node.exit().remove()
 	
 	
 }
@@ -1197,14 +1383,47 @@ Blobplot.prototype.drawTreemap = function(){
 
 
 
+function getVals(){
+  // Get slider values
+  var parent = this.parentNode;
+  var slides = parent.getElementsByTagName("input");
+    var slide1 = parseFloat( slides[0].value );
+    if (!slides[1]){
+    	var displayElement = parent.getElementsByClassName("rangeValues")[0];
+      		displayElement.innerHTML = slide1;
+    	return;
+    }
+    var slide2 = parseFloat( slides[1].value );
+  // Neither slider will clip the other, so make sure we determine which is larger
+  if( slide1 > slide2 ){ var tmp = slide2; slide2 = slide1; slide1 = tmp; }
+  
+  var displayElement = parent.getElementsByClassName("rangeValues")[0];
+      displayElement.innerHTML = slide1 + " to " + slide2;
+}
 
+window.onload = function(){
+  // Initialize Sliders
+  var sliderSections = document.getElementsByClassName("range-slider");
+      for( var x = 0; x < sliderSections.length; x++ ){
+        var sliders = sliderSections[x].getElementsByTagName("input");
+        for( var y = 0; y < sliders.length; y++ ){
+          if( sliders[y].type ==="range" ){
+            sliders[y].oninput = getVals;
+            // Manually trigger event first time to display values
+            sliders[y].oninput();
+          }
+        }
+      }
+    
+}
 
 
 
 var blob;
+//console.time('load');
 d3.json("json/blob.BlobDB.test2.json", function(error, json) {
 	if (error) return console.warn(error);
-	
+	//console.timeEnd('load');
 	
 	
 	d3.selectAll(".top-level-heading").on('click',function(){
@@ -1215,20 +1434,19 @@ d3.json("json/blob.BlobDB.test2.json", function(error, json) {
 	blob = new Blobplot(json,{width:900,height:900});	
 	dispatch.load(blob);
 
-	console.time('draw')
-	/*console.time('filter')
+	//console.time('draw')
+	/*//console.time('filter')
 	blob.createContigFilter({	name:'gc',
 								property:'gc',
 								relationship:'os',
 								value:[0.3,0.7]
 							});
 	blob.filterContigs();
-	console.timeEnd('filter')*/
+	//console.timeEnd('filter')*/
 	
 	
 	d3.select('#new-filter-submit').on("click",function(){ blob.createCellFilter(document.getElementById("filter-name-input").value); blob.selectNone(); });
 	d3.select('#apply-filters').on("click",function(){ blob.selectNone(); blob.applyFilters()});
-	d3.select('#include-filters').on("click",function(){ blob.selectNone(); blob.inverseFilters()});
 	d3.select('#select-all').on("click",function(){ blob.selectAll()});
 	d3.select('#select-none').on("click",function(){ blob.selectNone()});
 	d3.select('#list-contigs').on("click",function(){ console.log(blob.listContigs())});
@@ -1272,6 +1490,7 @@ dispatch.on('rankchange.tree',function(blob){
 	}
 	else {
 		d3.select("#treemap-plot").selectAll('.node').remove();
+		d3.select("#treemap-info").text('');
 	}
 });
 
@@ -1286,13 +1505,16 @@ dispatch.on('changescale.tree',function(blob,value){
 
 dispatch.on('changescale.blob',function(blob,value){
 	var cells = clone(blob.cells);
-	blob.blobvalue = value === "count"
-        ? function(d) { return d.length; }
-        : function(d) { return d.span; };
-    blob.Maxbin = value === "count"
-        ? function (){ return blob.maxbincount }
-        : function (){ return blob.maxbinspan; }
-	blob.radius.domain([1,blob.Maxbin()])
+	if (value === "count"){
+		blob.blobvalue = function(d) { return d.length; };
+		blob.Maxbin = function (){ return blob.maxbincount };
+		blob.radius.domain([1,blob.Maxbin()]);
+	}
+	else {
+		blob.blobvalue = function(d) { return d.span; };
+   		blob.Maxbin = function (){ return blob.maxbinspan; };
+		blob.radius.domain([200,blob.Maxbin()])
+	}
 	blob.plotBlobs();
 	blob.selectCells(cells);
 });
@@ -1329,6 +1551,7 @@ dispatch.on('toggletaxa.tree',function(blob){
 	}
 	else {
 		d3.select("#treemap-plot").selectAll('.node').transition().duration(500).style('opacity',0).remove();
+		d3.select("#treemap-info").text('');
 	}
 });
 
@@ -1348,20 +1571,22 @@ dispatch.on('resizebins.blob',function(blob,value){
 dispatch.on('resizehexes.blob',function(blob,value){
 	var cells = clone(blob.cells);
 	blob.hexsize = Math.pow(2,value)/2;
-	blob.radius.range([2,blob.width/250*blob.binscale*blob.hexsize])
+	blob.radius.range([1.5,blob.width/250*blob.binscale*blob.hexsize])
 	blob.plotBlobs();
 	blob.selectCells(cells);
 });
 
 dispatch.on('filterpreviewstart.blob',function(blob,value){
-	var newblob = new Blobplot({'dict_of_blobs':blob.blobs});
-	var filteredblobs = {};
-	blob.contigFilters[value].contigs.forEach(function(contig,i){
-		filteredblobs[contig] = newblob.blobs[contig];
-	});
-	newblob.filteredblobs = filteredblobs;
-	newblob.previewBlobs(blob);
-	this.tmpblob = newblob;
+	if (blob.contigFilters.hasOwnProperty(value)){
+		var newblob = new Blobplot({'dict_of_blobs':blob.blobs});
+		var filteredblobs = {};
+		blob.contigFilters[value].contigs.forEach(function(contig,i){
+			filteredblobs[contig] = newblob.blobs[contig];
+		});
+		newblob.filteredblobs = filteredblobs;
+		newblob.previewBlobs(blob);
+		this.tmpblob = newblob;
+	}
 });
 
 dispatch.on('filterpreviewend.blob',function(blob,value){

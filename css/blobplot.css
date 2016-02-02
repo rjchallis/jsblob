@@ -25,9 +25,15 @@ html, body {
 #filter {
 }
 
+#treemap-info {
+	position:absolute;
+	height:24px;
+	top:-24px;
+}
+
 .top-level {
 	float:left;
-	width: 150px;
+	width: 200px;
 	margin-right: 12px;
 	height:24px;
 	overflow:hidden;
@@ -126,4 +132,75 @@ html, body {
 
 .node.selected {
   background-color: rgba(0,0,255,0.5) !important;
+}
+
+.filler {
+  height:100%;
+  width:100%;
+  top:0px;
+  left:0px;
+  overflow: hidden;
+  position: absolute;
+  border:none;
+  margin-left:-1px;
+  background-color: rgba(255,255,255,0.125) !important;
+}
+
+.subnode {
+  border: solid 1px rgba(255,255,255,0.25);
+  overflow: hidden;
+  position: absolute;
+ /* background-color: rgba(0,0,255,0.5) !important;*/
+}
+
+
+
+  section.range-slider {
+    position: relative;
+    width: 100%;
+    height: 45px;
+    text-align: left;
+}
+
+section.range-slider input {
+    pointer-events: none;
+    position: absolute;
+    overflow: hidden;
+    left: 0;
+    top: 22px;
+    /*width: 200px;*/
+    outline: none;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+}
+
+section.range-slider input::-webkit-slider-thumb {
+    pointer-events: all;
+    position: relative;
+    z-index: 1;
+    outline: 0;
+}
+
+section.range-slider input::-moz-range-thumb {
+    pointer-events: all;
+    position: relative;
+    z-index: 10;
+    -moz-appearance: none;
+    width: 9px;
+}
+
+section.range-slider input::-moz-range-track {
+    position: relative;
+    z-index: -1;
+    background-color: rgba(0, 0, 0, 1);
+    border: 0;
+}
+section.range-slider input:last-of-type::-moz-range-track {
+    -moz-appearance: none;
+    background: none transparent;
+    border: 0;
+}
+  section.range-slider input[type=range]::-moz-focus-outer {
+  border: 0;
 }

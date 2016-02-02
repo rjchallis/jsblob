@@ -11,9 +11,64 @@
 		<div id="main">
 			<div id="menu">
 				<div id="filter" class="top-level"><div class="top-level-heading">Filters</div>
-					<div id="apply-filters" class="section">apply</div>
-					<div id="include-filters" class="section">include</div>
-					<div id="filters">
+					<div id="gc-filter" class="filter-options slider section">
+						<section class="range-slider">
+  						gc [<span class="rangeValues"></span>]
+  							<input class="range"  value="0" min="0" max="1" step="0.01" type="range">
+  							<input class="range"  value="1" min="0" max="1" step="0.01" type="range">
+						</section>
+						<form>
+  							<label>off<input type="radio" name="gc-filter-switch" value="off" checked></label>
+  							<label>in<input type="radio" name="gc-filter-switch" value="inc"></label>
+  							<label>out<input type="radio" name="gc-filter-switch" value="exc"></label>
+						</form>
+  					</div>
+  					<div id="cov-filter" class="filter-options slider section">
+						<section class="range-slider">
+  						log(cov) [<span class="rangeValues"></span>]
+  							<input class="range" value="-4" min="-4" max="6" step="0.5" type="range">
+  							<input class="range"  value="6" min="-4" max="6" step="0.5" type="range">
+						</section>
+						<form>
+  							<label>off<input type="radio" name="cov-filter-switch" value="off" checked></label>
+  							<label>in<input type="radio" name="cov-filter-switch" value="inc"></label>
+  							<label>out<input type="radio" name="cov-filter-switch" value="exc"></label>
+						</form>
+  					</div>
+					<div id="l-filter" class="filter-options slider section">
+						<section class="range-slider">
+						length: [<span class="rangeValues"></span>]
+						<input class="range"  id="length-slider" type="range" name="points" min="0" max="2000" value="0" step="100"/>
+						</section>
+						<form>
+  							<label>off<input type="radio" name="length-filter-switch" value="off" checked></label>
+  							<label>gt<input type="radio" name="length-filter-switch" value="inc"></label>
+  							<label>lt<input type="radio" name="length-filter-switch" value="exc"></label>
+						</form>
+  					</div>
+  					<div id="c-filter" class="filter-options slider section">
+						<section class="range-slider">
+						c-index: [<span class="rangeValues"></span>]
+						<input class="range"  id="length-slider" type="range" name="points" min="0" max="10" value="0"/>
+						</section>
+						<form>
+  							<label>off<input type="radio" name="length-filter-switch" value="off" checked></label>
+  							<label>gt<input type="radio" name="length-filter-switch" value="inc"></label>
+  							<label>lt<input type="radio" name="length-filter-switch" value="exc"></label>
+						</form>
+  					</div>
+  					<div id="s-filter" class="filter-options slider section">
+						<section class="range-slider">
+						bit-score: [<span class="rangeValues"></span>]
+						<input class="range"  id="length-slider" type="range" name="points" min="0" max="5000" value="0" step="100"/>
+						</section>
+						<form>
+  							<label>off<input type="radio" name="length-filter-switch" value="off" checked></label>
+  							<label>gt<input type="radio" name="length-filter-switch" value="inc"></label>
+  							<label>lt<input type="radio" name="length-filter-switch" value="exc"></label>
+						</form>
+  					</div>
+  					<div id="filters">
 					
 					</div>
 					<div id="new-filter" class="section">
@@ -21,6 +76,8 @@
 						<input type="submit" id="new-filter-submit" value="create"/>
 	
 					</div>
+					<div id="apply-filters" class="section">apply</div>
+					
 				</div>
 				<div id="options" class="top-level"><div class="top-level-heading">Options</div>
 					<div id="select-all" class="section">select all</div>
@@ -68,7 +125,7 @@
 				</div>
 			</div>
 			<div id="treemap">
-				<div id="treemap-controls">
+				<div id="treemap-info">
 				
 				</div>
 				<div id="treemap-plot">
