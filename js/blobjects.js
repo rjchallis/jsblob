@@ -738,16 +738,16 @@ function satisfies (relationship,bound,value){
 }
 
 
-Blobplot.prototype.createContigFilter = function(name,values){
+Blobplot.prototype.createContigFilter = function(name,values,status){
 	/* {name:"display_name",
 	    property:"gc,cov,c_index,len",
 	    relationship:"lt, gt, (be)tw(een), o(ut)s(ide)",
 	    value:int or array of ints
 	   } */
+	   var rel = status == 'inc' ? 'os' : 'tw';
 	   var parts = name.split('-');
-	   console.log(parts[0]);
 	var filter = {name:parts[0],
-		relationship:'tw',
+		relationship:rel,
 		type:'slider',
 	    value:values
 	   };
@@ -755,7 +755,7 @@ Blobplot.prototype.createContigFilter = function(name,values){
 	for( var contig in this.blobs ) {
     	if( this.blobs.hasOwnProperty( contig ) ) {
     		if (filter.name == 'l' || filter.name == 'c' || filter.name == 's'){
-    			filter.relationship = 'gt';
+    			filter.relationship = status == 'inc' ? 'lt' : 'gt';
     		}
     		if (filter.name == 'gc' || filter.name == 'l'){
     			var value = this.blobs[contig][filter.name];
@@ -764,7 +764,7 @@ Blobplot.prototype.createContigFilter = function(name,values){
     			}
     		}
     		if (filter.name == 'cov'){
-    			var value = this.blobs[contig].cov[this.cov];
+    			var value = Math.log10(this.blobs[contig].cov[this.cov]+this.zerocov);
     			if (satisfies(filter.relationship,filter.value,value)){
     				filter.contigs.push(contig);
     			}
@@ -900,7 +900,7 @@ Blobplot.prototype.showFilters = function(target){
 	var data = []
 	for( var filter in this.contigFilters ) {
     	if( this.contigFilters.hasOwnProperty( filter ) ) {
-    		if (!this.contigFilters[filter].hasOwnProperty( 'slider' ) ){
+    		if (!this.contigFilters[filter].hasOwnProperty( 'type' ) ){
     			data.push(clone(this.contigFilters[filter]))
     		}
 		}
@@ -950,23 +950,16 @@ Blobplot.prototype.applyFilters = function(){
 	this.colormap = null;
 	this.taxorder = null;
 	var blobplot = this;
+	var slideinc = [];
+	var slideexc = [];
 	var include = [];
 	var exclude = [];
 	// which filters to apply?
-	d3.selectAll('.filter-options').each(function(){
+	d3.selectAll('.filter-options.cell').each(function(){
 		var el = d3.select(this);
 		var id = el.attr('id');
 		var status = el.select('form input:checked').node().value;
-		var slides = el.selectAll(".range");
-		if (!slides.empty()){
-			var vals = [];
-			slides.each(function(){
-				vals.push(this.value);
-			})
-			vals = vals.sort();
-			blobplot.createContigFilter(id,vals);
-    	}
-    	if (status == 'inc'){
+		if (status == 'inc'){
     		blobplot.contigFilters[id].active = 'inc';
     		include.push(id);
     	}
@@ -974,16 +967,51 @@ Blobplot.prototype.applyFilters = function(){
     		blobplot.contigFilters[id].active = 'exc';
     		exclude.push(id);
     	}
-	});
+    });
 	if (include[0]){
 		this.filteredblobs = {}
 		this._includeContigs(include)
 	}
-	else if (exclude[0]) {
-		this.filteredblobs = clone(this.blobs);
-	}
-	else {
-		this.filteredblobs = this.blobs;
+	
+	// make a single list of contigs based on intersection of sliders
+	// check that include filters are on this list
+	// remove exclude filters from this list
+	d3.selectAll('.filter-options.slider').each(function(){
+		var el = d3.select(this);
+		var id = el.attr('id');
+		var status = el.select('form input:checked').node().value;
+		if (status != 'off'){
+			var slides = el.selectAll(".range");
+			if (!slides.empty()){
+				var vals = [];
+				slides.each(function(){
+					vals.push(this.value);
+				})
+				vals = vals.sort();
+				if (!include[0]){
+					blobplot.filteredblobs = {};
+					status = status == 'inc' ? 'exc' : 'inc';
+					blobplot.createContigFilter(id,vals,status);
+    				include.push(id);
+					blobplot._includeContigs(include)
+					blobplot.contigFilters[id].active = status;
+				}
+				else {
+					blobplot.createContigFilter(id,vals,status);
+					blobplot.contigFilters[id].active = status;
+    				exclude.push(id);
+    			}
+    		}
+    	}
+	});
+	
+	if (!include[0]){
+		if (exclude[0]) {
+			this.filteredblobs = clone(this.blobs);
+		}
+		else {
+			this.filteredblobs = this.blobs;
+		}
 	}
 	if (exclude[0]){
 		this._excludeContigs(exclude);
@@ -1549,16 +1577,16 @@ dispatch.on('resizehexes.blob',function(blob,value){
 });
 
 dispatch.on('filterpreviewstart.blob',function(blob,value){
-	var newblob = new Blobplot({'dict_of_blobs':blob.blobs});
-	var filteredblobs = {};
-	console.log(blob.contigFilters);
-	console.log(blob.contigFilters[value]);
-	blob.contigFilters[value].contigs.forEach(function(contig,i){
-		filteredblobs[contig] = newblob.blobs[contig];
-	});
-	newblob.filteredblobs = filteredblobs;
-	newblob.previewBlobs(blob);
-	this.tmpblob = newblob;
+	if (blob.contigFilters.hasOwnProperty(value)){
+		var newblob = new Blobplot({'dict_of_blobs':blob.blobs});
+		var filteredblobs = {};
+		blob.contigFilters[value].contigs.forEach(function(contig,i){
+			filteredblobs[contig] = newblob.blobs[contig];
+		});
+		newblob.filteredblobs = filteredblobs;
+		newblob.previewBlobs(blob);
+		this.tmpblob = newblob;
+	}
 });
 
 dispatch.on('filterpreviewend.blob',function(blob,value){
