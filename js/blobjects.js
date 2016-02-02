@@ -738,23 +738,46 @@ function satisfies (relationship,bound,value){
 }
 
 
-Blobplot.prototype.createContigFilter = function(obj){
+Blobplot.prototype.createContigFilter = function(name,values){
 	/* {name:"display_name",
 	    property:"gc,cov,c_index,len",
 	    relationship:"lt, gt, (be)tw(een), o(ut)s(ide)",
 	    value:int or array of ints
 	   } */
-	var filter = obj;
+	   var parts = name.split('-');
+	   console.log(parts[0]);
+	var filter = {name:parts[0],
+		relationship:'tw',
+		type:'slider',
+	    value:values
+	   };
 	filter.contigs = [];
 	for( var contig in this.blobs ) {
     	if( this.blobs.hasOwnProperty( contig ) ) {
-    		var value = this.blobs[contig][obj.property];
-    		if (satisfies(obj.relationship,obj.value,value)){
-    			filter.contigs.push(contig);
+    		if (filter.name == 'l' || filter.name == 'c' || filter.name == 's'){
+    			filter.relationship = 'gt';
+    		}
+    		if (filter.name == 'gc' || filter.name == 'l'){
+    			var value = this.blobs[contig][filter.name];
+    			if (satisfies(filter.relationship,filter.value,value)){
+    				filter.contigs.push(contig);
+    			}
+    		}
+    		if (filter.name == 'cov'){
+    			var value = this.blobs[contig].cov[this.cov];
+    			if (satisfies(filter.relationship,filter.value,value)){
+    				filter.contigs.push(contig);
+    			}
+    		}
+    		if (filter.name == 's' || filter.name == 'c'){
+    			var value = this.blobs[contig].taxonomy[this.rank][filter.name];
+    			if (satisfies(filter.relationship,filter.value,value)){
+    				filter.contigs.push(contig);
+    			}
     		}
     	}
     }
-    this.contigFilters[obj.name] = filter;
+    this.contigFilters[name] = filter;
 	
 }
 
@@ -875,13 +898,15 @@ Blobplot.prototype.showFilters = function(target){
 	var data = []
 	for( var filter in this.contigFilters ) {
     	if( this.contigFilters.hasOwnProperty( filter ) ) {
-    		data.push(clone(this.contigFilters[filter]))
+    		if (!this.contigFilters[filter].hasOwnProperty( 'slider' ) ){
+    			data.push(clone(this.contigFilters[filter]))
+    		}
 		}
 	}
 	var blobplot = this;
-	var filters = d3.select('#'+target).selectAll('div.filter-options').data(data);
+	var filters = d3.select('#'+target).selectAll('div.filter-options.cell').data(data);
 	var enter = filters.enter()
-	var container = enter.append('div').attr('class','filter-options section');
+	var container = enter.append('div').attr('class','filter-options cell section');
 	container.attr('id',function(d){ return d.name; })
 			 .attr('rel',function(d){ return d.name; })
 	container.on('mouseenter',function(){
@@ -902,7 +927,8 @@ Blobplot.prototype.showFilters = function(target){
 		label.insert('input')
 			 .attr('type','radio')
 			 .attr('name','filter-switch')
-			 .property('value',value);
+			 .property('value',value)
+			 .property('checked',function(){if (value == 'off') return true;});
 			 
 	});
 	
@@ -929,7 +955,6 @@ Blobplot.prototype.applyFilters = function(){
 		var el = d3.select(this);
 		var id = el.attr('id');
 		var status = el.select('form input:checked').node().value;
-		console.log(id+' '+status);
 		var slides = el.selectAll(".range");
 		if (!slides.empty()){
 			var vals = [];
@@ -937,17 +962,15 @@ Blobplot.prototype.applyFilters = function(){
 				vals.push(this.value);
 			})
 			vals = vals.sort();
-    		console.log(vals);
+			blobplot.createContigFilter(id,vals);
     	}
-    	else {
-    		if (status == 'inc'){
-    			blobplot.contigFilters[id].active = 'inc';
-    			include.push(id);
-    		}
-    		else if (status == 'exc'){
-    			blobplot.contigFilters[id].active = 'exc';
-    			exclude.push(id);
-    		}
+    	if (status == 'inc'){
+    		blobplot.contigFilters[id].active = 'inc';
+    		include.push(id);
+    	}
+    	else if (status == 'exc'){
+    		blobplot.contigFilters[id].active = 'exc';
+    		exclude.push(id);
     	}
 	});
 	if (include[0]){
@@ -1335,6 +1358,11 @@ function getVals(){
   var parent = this.parentNode;
   var slides = parent.getElementsByTagName("input");
     var slide1 = parseFloat( slides[0].value );
+    if (!slides[1]){
+    	var displayElement = parent.getElementsByClassName("rangeValues")[0];
+      		displayElement.innerHTML = slide1;
+    	return;
+    }
     var slide2 = parseFloat( slides[1].value );
   // Neither slider will clip the other, so make sure we determine which is larger
   if( slide1 > slide2 ){ var tmp = slide2; slide2 = slide1; slide1 = tmp; }
@@ -1356,6 +1384,7 @@ window.onload = function(){
           }
         }
       }
+    
 }
 
 
@@ -1520,6 +1549,8 @@ dispatch.on('resizehexes.blob',function(blob,value){
 dispatch.on('filterpreviewstart.blob',function(blob,value){
 	var newblob = new Blobplot({'dict_of_blobs':blob.blobs});
 	var filteredblobs = {};
+	console.log(blob.contigFilters);
+	console.log(blob.contigFilters[value]);
 	blob.contigFilters[value].contigs.forEach(function(contig,i){
 		filteredblobs[contig] = newblob.blobs[contig];
 	});
