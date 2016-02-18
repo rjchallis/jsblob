@@ -43,8 +43,10 @@ $indices{'covLibs'} = {"cov0" 		=> 0,
 					   "cov1"		=> 1,
 					   "cov2"		=> 2,
 					   "cov3"		=> 3};
+#$indices{'covLibs'} = {"cov0" 		=> 0};
 					   
-$indices{'taxrules'} = {"bestsum" 	=> 0};
+$indices{'taxrules'} = {"bestsum" 	=> 0};#,
+						#"bestsumorder" 	=> 1};
 
 
 
@@ -89,30 +91,34 @@ $hash->{taxrules} = \@taxrules;
 
 our %taxindex;
 
-foreach my $rank (sort { $indices{'ranks'}{$a} <=> $indices{'ranks'}{$b} } keys %{$indices{'ranks'}}){
-	my $ctr = 0;
-	foreach my $contig (keys %{$ref->{dict_of_blobs}}){
-		$hash->{dict_of_blobs}->{$contig}->{l} = $ref->{dict_of_blobs}->{$contig}->{'length'};
-		$hash->{dict_of_blobs}->{$contig}->{gc} = $ref->{dict_of_blobs}->{$contig}->{gc};
-		$hash->{dict_of_blobs}->{$contig}->{n} = $ref->{dict_of_blobs}->{$contig}->{n_count} if $ref->{dict_of_blobs}->{$contig}->{n_count};
-		$hash->{dict_of_blobs}->{$contig}->{cov} = [];
-		foreach my $cov (keys %{$ref->{dict_of_blobs}->{$contig}->{covs}}){
-			$hash->{dict_of_blobs}->{$contig}->{cov}->[$indices{'covLibs'}->{$cov}] = $ref->{dict_of_blobs}->{$contig}->{covs}->{$cov};
-		}
-		$hash->{dict_of_blobs}->{$contig}->{tax} = [];
-		foreach my $taxonomy (keys %{$ref->{dict_of_blobs}->{$contig}->{taxonomy}}){
-			my @tax = $hash->{dict_of_blobs}->{$contig}->{taxonomy}->[$indices{'taxrules'}->{$taxonomy}] ? @{$hash->{dict_of_blobs}->{$contig}->{taxonomy}->[$indices{'taxrules'}->{$taxonomy}]} : ();
-			my $tax = $ref->{dict_of_blobs}->{$contig}->{taxonomy}->{$taxonomy}->{$rank}->{tax};
-			$tax[$indices{'ranks'}->{$rank}] = { 's' => $ref->{dict_of_blobs}->{$contig}->{taxonomy}->{$taxonomy}->{$rank}->{score},
-												 't' => tax_index($tax)
-											   };
-			$tax[$indices{'ranks'}->{$rank}]->{'c'}	= $ref->{dict_of_blobs}->{$contig}->{taxonomy}->{$taxonomy}->{$rank}->{c_index} if $ref->{dict_of_blobs}->{$contig}->{taxonomy}->{$taxonomy}->{$rank}->{c_index};
-			$hash->{dict_of_blobs}->{$contig}->{taxonomy}->[$indices{'taxrules'}->{$taxonomy}] = \@tax;
-		}
-		$ctr++;
-		#last if $ctr == 100000;
+my $ctr = 0;
+foreach my $contig (keys %{$ref->{dict_of_blobs}}){
+	$hash->{dict_of_blobs}->{$contig}->[0] = $ref->{dict_of_blobs}->{$contig}->{'length'};
+	$hash->{dict_of_blobs}->{$contig}->[1] = $ref->{dict_of_blobs}->{$contig}->{gc};
+	#$hash->{dict_of_blobs}->{$contig}->[2] = $ref->{dict_of_blobs}->{$contig}->{n_count} if $ref->{dict_of_blobs}->{$contig}->{n_count};
+	$hash->{dict_of_blobs}->{$contig}->[2] = [];
+	my @tmparr;
+	foreach my $cov (keys %{$ref->{dict_of_blobs}->{$contig}->{covs}}){
+		$tmparr[$indices{'covLibs'}->{$cov}] = $ref->{dict_of_blobs}->{$contig}->{covs}->{$cov};
 	}
+	$hash->{dict_of_blobs}->{$contig}->[2] = \@tmparr;
+	$hash->{dict_of_blobs}->{$contig}->[3] = [];
+	foreach my $taxonomy (keys %{$ref->{dict_of_blobs}->{$contig}->{taxonomy}}){
+		my @tax;
+			foreach my $rank (sort { $indices{'ranks'}{$a} <=> $indices{'ranks'}{$b} } keys %{$indices{'ranks'}}){
+
+			my $tax = $ref->{dict_of_blobs}->{$contig}->{taxonomy}->{$taxonomy}->{$rank}->{tax};
+			$tax[$indices{'ranks'}->{$rank}] = [ $ref->{dict_of_blobs}->{$contig}->{taxonomy}->{$taxonomy}->{$rank}->{score},
+												 tax_index($tax)
+											   ];
+			$tax[$indices{'ranks'}->{$rank}]->[2] = $ref->{dict_of_blobs}->{$contig}->{taxonomy}->{$taxonomy}->{$rank}->{c_index} if $ref->{dict_of_blobs}->{$contig}->{taxonomy}->{$taxonomy}->{$rank}->{c_index};
+			}
+		$hash->{dict_of_blobs}->{$contig}->[3]->[$indices{'taxrules'}->{$taxonomy}] = \@tax;
+	}
+	$ctr++;
+	#last if $ctr == 100000;
 }
+
 
 my %revindex;
 foreach my $taxon (keys %taxindex){
@@ -157,6 +163,16 @@ taxrules:[
 	...	
 ]
 
+contigstats:[  # TODO this should be an obj with ranges, defaults, etc. to auto build filters
+	cov, # must be here
+	tax, # must be here
+	l, # required, any order
+	gc, # required, any order
+	n # optional
+]
+
+# TODO: repeat for taxstats
+
 dict_of_blobs:{
 	contig_1:{	l:200,
 				gc:0.54,
@@ -181,3 +197,9 @@ dict_of_blobs:{
 	},
 	...
 }
+
+Turn everything into arrays for big space saving...
+Gzip for even more - can get 670000 contigs down to 13.9 MB
+Need to support this (compressed) format in jsblob
+
+add an object to map types to indices to retain flexibility
