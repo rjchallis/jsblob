@@ -9,7 +9,8 @@ function Blobplot (data,options){
 	this.ranknames = data.ranknames;
 	this.taxrules = data.taxrules;
 	this.covs = data.covs;
-	
+	this.param_order = {'l':0,'gc':1,'cov':2,'tax':3};
+	this.tax_param_order = {'s':0,'t':1,'c':2};
 	options = options || {};
 	
 	var width = options.width || 900,
@@ -482,17 +483,19 @@ Blobplot.prototype._applyRules = function(){
 	var cov = this.cov;
 	var rank = this.rank;
 	var zerocov = this.zerocov;
+	var porder = this.param_order;
+	var torder = this.tax_param_order;
 	//console.timeEnd('rules setup');
 	//console.time('rules loop');
 	// select taxrule, rank and coverage
 	//for (var contig in blobs){
 	//	if (blobs.hasOwnProperty(contig)){
 	Object.keys(blobs).forEach(function(contig){
-		var taxon = blobs[contig].taxonomy[taxrule][rank].t;
+		var taxon = blobs[contig][porder['tax']][taxrule][rank][torder['t']];
 		if (!points[taxon]){
     		points[taxon] = [];
     	}
-    	points[taxon].push([blobs[contig].gc*10,Math.log10(blobs[contig].cov[cov] + zerocov),contig,blobs[contig].l]);
+    	points[taxon].push([blobs[contig][porder['gc']]*10,Math.log10(blobs[contig][porder['cov']][cov] + zerocov),contig,blobs[contig][porder['l']]]);
 		//points[taxon].push([blobs[contig].gc,blobs[contig].cov[cov],contig,blobs[contig].l]);
 		//}
 	});
@@ -744,6 +747,8 @@ Blobplot.prototype.createContigFilter = function(name,values,status){
 	    relationship:"lt, gt, (be)tw(een), o(ut)s(ide)",
 	    value:int or array of ints
 	   } */
+	   var porder = this.param_order;
+		var torder = this.tax_param_order;
 	   var rel = status == 'inc' ? 'os' : 'tw';
 	   var parts = name.split('-');
 	var filter = {name:parts[0],
@@ -764,14 +769,14 @@ Blobplot.prototype.createContigFilter = function(name,values,status){
     			}
     		}
     		if (filter.name == 'cov'){
-    			var value = Math.log10(this.blobs[contig].cov[this.cov]+this.zerocov);
+    			var value = Math.log10(this.blobs[contig][porder['cov']][this.cov]+this.zerocov);
     			if (satisfies(filter.relationship,filter.value,value)){
     				filter.contigs.push(contig);
     			}
     		}
     		if (filter.name == 's' || filter.name == 'c'){
-    			if (this.blobs[contig].taxonomy[this.taxrule][this.rank].hasOwnProperty(filter.name)){
-    				var value = this.blobs[contig].taxonomy[this.taxrule][this.rank][filter.name];
+    			if (this.blobs[contig][porder['tax']][this.taxrule][this.rank][torder[filter.name]]){
+    				var value = this.blobs[contig][porder['tax']][this.taxrule][this.rank][torder[filter.name]];
     				if (satisfies(filter.relationship,filter.value,value)){
     					filter.contigs.push(contig);
     				}
@@ -1152,13 +1157,15 @@ Blobplot.prototype._addNodes = function (parent,rank,taxon,bin){
 	var blobs = this.Blobs();
 	var taxrule = this.Taxrule();
 	var cov = this.Cov();
+	var porder = this.param_order;
+	var torder = this.tax_param_order;
 	//var rank = this.ranks[parent];
 	var taxa = {};
 	var children = [];
 	contigs.forEach(function (arr,i){
 		//arr[2] = contig name
 		if (arr[2] && blobs[arr[2]]){
-			name = blobs[arr[2]].taxonomy[taxrule][rank].t;
+			name = blobs[arr[2]][porder['tax']][taxrule][rank][torder['t']];
 			if (!taxa[name]){
 				taxa[name] = {}
 				taxa[name].size = 0
@@ -1281,6 +1288,8 @@ Blobplot.prototype.subTreemap = function(current,contigs){
 	var bounds = current.node().getBoundingClientRect();
 	var cells = this.cells;
 	var blobplot = this;
+	var porder = this.param_order;
+	var torder = this.tax_param_order;
 	var treemap = d3.layout.treemap()
     	.size([bounds.width, bounds.height])
     	.sticky(true)
@@ -1292,7 +1301,7 @@ Blobplot.prototype.subTreemap = function(current,contigs){
 	contigs.forEach(function(name){
 		var tmp = {};
 		tmp.name = name;
-		tmp.size = blobplot.blobs[name].l;
+		tmp.size = blobplot.blobs[name][porder[l]];
 		tmp.count = 1;
 		tree.children.push(tmp);
 	});
@@ -1330,6 +1339,8 @@ Blobplot.prototype.drawTreemap = function(){
 	
 	var value = this.treevalue;
 	var blobplot = this;
+	var porder = this.param_order;
+	var torder = this.tax_param_order;
 	var node = d3.select("#treemap-plot").datum(this.tree).selectAll(".node")
 		.data(this.treemap.value(value).nodes);
 		//.data(this.treemap.value.nodes);
@@ -1354,7 +1365,7 @@ Blobplot.prototype.drawTreemap = function(){
 		.on('click',function(d){
 			var scores = [];
 			d.contigs.forEach(function(name,i){
-				scores.push(blobplot.filteredblobs[name].taxonomy[blobplot.taxrule][blobplot.rank].s);
+				scores.push(blobplot.filteredblobs[name][porder['tax']][blobplot.taxrule][blobplot.rank][torder['s']]);
 				scores[i] = scores[i] > 20000 ? 20000 : scores[i];
 			});
 			var values = scores.sort(d3.ascending);
@@ -1421,7 +1432,10 @@ window.onload = function(){
 
 var blob;
 //console.time('load');
-d3.json("json/blob.BlobDB.test2.json", function(error, json) {
+//d3.json("json/blob.BlobDB.test2.json", function(error, json) {
+//d3.json("json/blob.BlobDB.test.json", function(error, json) {
+//d3.json("json/uncnHd.json", function(error, json) {
+d3.json("json/blob.BlobDB.arr.json", function(error, json) {
 	if (error) return console.warn(error);
 	//console.timeEnd('load');
 	
